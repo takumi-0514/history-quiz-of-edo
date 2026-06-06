@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>歴史年号暗記クイズ (日本史＆世界史)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome (for icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f5f3ef; /* 落ち着いた和の質感 */
+        }
+        .japanese-font {
+            font-family: 'Kiwi Maru', 'Noto Sans JP', serif;
+        }
+        /* スクロールバーのカスタマイズ（年表用） */
+        .timeline-scroll::-webkit-scrollbar {
+            height: 10px;
+        }
+        .timeline-scroll::-webkit-scrollbar-track {
+            background: #f1ede7;
+            border-radius: 9999px;
+        }
+        .timeline-scroll::-webkit-scrollbar-thumb {
+            background: #c2b5a3;
+            border-radius: 9999px;
+            border: 2px solid #f1ede7;
+        }
+        .timeline-scroll::-webkit-scrollbar-thumb:hover {
+            background: #a3937f;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between text-stone-800 select-none">
+
+    <!-- ヘッダー -->
+    <header class="bg-amber-900 text-amber-50 py-4 px-6 shadow-md">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold japanese-font flex items-center gap-2">
+                <i class="fa-solid fa-scroll"></i> 歴史年号・暗記道場
+            </h1>
+            <div id="header-badge" class="text-xs md:text-sm bg-amber-800 px-3 py-1.5 rounded-full font-medium">
+                日本史 ＆ 世界史 対応
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-grow p-4 md:p-6 flex items-center justify-center relative">
+        <div class="w-full max-w-xl bg-white rounded-2xl shadow-xl border border-stone-200 overflow-hidden transition-all duration-300">
+            
+            <!-- スタート画面 -->
+            <div id="start-screen" class="p-6 md:p-10 text-center">
+                <div class="text-amber-700 text-6xl mb-4">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <h2 class="text-2xl md:text-3xl font-bold mb-4 japanese-font text-stone-900">
+                    歴史年号暗記に挑戦！
+                </h2>
+                <p class="text-stone-600 mb-6 text-sm md:text-base leading-relaxed">
+                    日本史（江戸〜明治）または世界史（近代）の重要年号をマスターしましょう！<br>
+                    お好みの設定を選んで「修行を始める」を押してください。
+                </p>
+
+                <!-- 設定エリア -->
+                <div class="bg-amber-50 p-5 rounded-2xl mb-6 max-w-md mx-auto border border-amber-100 text-left space-y-4 animate-fade-in">
+                    
+                    <!-- 分野選択 -->
+                    <div>
+                        <h3 class="font-bold text-amber-900 mb-1.5 flex items-center justify-between text-xs tracking-wider uppercase">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-map-location-dot"></i> 歴史分野</span>
+                            <span id="field-stats-badge" class="text-[10px] text-stone-500 font-normal">江戸〜明治 (全48問)</span>
+                        </h3>
+                        <div class="flex bg-stone-200/60 p-1 rounded-xl gap-1">
+                            <button onclick="setHistoryField('japan')" id="btn-field-japan" class="flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center bg-amber-900 text-white shadow-sm">
+                                日本史 <span class="text-[10px] font-normal opacity-90 hidden sm:inline">(江戸〜明治)</span>
+                            </button>
+                            <button onclick="setHistoryField('world')" id="btn-field-world" class="flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center text-stone-600 hover:text-stone-900">
+                                世界史 <span class="text-[10px] font-normal opacity-90 hidden sm:inline">(近代)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 修行の種類（通常 or 苦手克服） -->
+                    <div>
+                        <h3 class="font-bold text-amber-900 mb-1.5 flex items-center justify-between text-xs tracking-wider uppercase">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-dumbbell"></i> 修行スタイル</span>
+                        </h3>
+                        <div class="flex bg-stone-200/60 p-1 rounded-xl gap-1">
+                            <button onclick="setTrainingStyle(false)" id="btn-style-normal" class="flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center flex items-center justify-center gap-1.5 bg-amber-900 text-white shadow-sm">
+                                <i class="fa-solid fa-cubes text-[10px]"></i> 通常修行
+                            </button>
+                            <button onclick="setTrainingStyle(true)" id="btn-style-weak" class="flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center flex items-center justify-center gap-1.5 relative text-stone-600 hover:text-stone-900">
+                                <i class="fa-solid fa-fire text-red-500 text-[10px]"></i> 苦手克服
+                                <span id="weak-count-badge" class="ml-1 text-[9px] bg-red-500 text-white font-bold px-1.5 py-0.5 rounded-full hidden">0</span>
+                            </button>
+                        </div>
+                        <p id="style-desc" class="text-[10px] text-stone-500 mt-1.5 leading-relaxed pl-1">全ての出来事からランダムに出題します。</p>
+                    </div>
+
+                    <!-- モード選択 -->
+                    <div>
+                        <h3 class="font-bold text-amber-900 mb-1.5 flex items-center gap-1.5 text-xs tracking-wider uppercase">
+                            <i class="fa-solid fa-gears"></i> クイズモード
+                        </h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <!-- 記述モードボタン -->
+                            <button onclick="setQuizMode('input')" id="btn-mode-input" class="py-2 px-3 bg-amber-900 text-white rounded-xl text-xs font-bold transition-all border border-amber-900 flex flex-col items-center justify-center gap-0.5 shadow-inner">
+                                <span>出来事 ➔ 年号入力</span>
+                                <span class="text-[9px] opacity-85 font-normal hidden sm:inline">西暦4桁を直接キー入力</span>
+                            </button>
+                            <!-- 逆4択モードボタン -->
+                            <button onclick="setQuizMode('choice')" id="btn-mode-choice" class="py-2 px-3 bg-white text-stone-700 border border-stone-300 rounded-xl text-xs font-bold hover:bg-stone-50 transition-all flex flex-col items-center justify-center gap-0.5">
+                                <span>年号 ➔ 出来事選択</span>
+                                <span class="text-[9px] text-stone-500 font-normal hidden sm:inline">類義テーマ等の4択</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 問題数選択 -->
+                    <div id="question-count-selector">
+                        <h3 class="font-bold text-amber-900 mb-1.5 flex items-center gap-1.5 text-xs tracking-wider uppercase">
+                            <i class="fa-solid fa-sliders"></i> 問題数
+                        </h3>
+                        <div class="flex gap-2">
+                            <button onclick="setQuestionCount(10)" id="btn-count-10" class="flex-1 py-1 px-3 bg-amber-900 text-white rounded-lg text-xs font-semibold transition-colors">10問</button>
+                            <button onclick="setQuestionCount(20)" id="btn-count-20" class="flex-1 py-1 px-3 bg-white text-stone-700 border border-stone-300 rounded-lg text-xs font-semibold hover:bg-stone-50 transition-colors">20問</button>
+                            <button onclick="setQuestionCount('all')" id="btn-count-all" class="flex-1 py-1 px-3 bg-white text-stone-700 border border-stone-300 rounded-lg text-xs font-semibold hover:bg-stone-50 transition-colors">全問</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ボタンエリア -->
+                <div class="flex flex-col sm:flex-row gap-3 justify-center max-w-sm mx-auto">
+                    <button onclick="startGame()" class="flex-1 bg-amber-700 hover:bg-amber-800 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all text-base tracking-wider flex items-center justify-center gap-2">
+                        修行を始める <i class="fa-solid fa-circle-play"></i>
+                    </button>
+                    <!-- 年表ボタン -->
+                    <button onclick="openTimeline()" class="bg-white hover:bg-stone-50 text-stone-700 border border-stone-300 font-bold py-3 px-5 rounded-xl transition-all flex items-center justify-center gap-2 text-base">
+                        <i class="fa-solid fa-chart-column text-amber-700"></i> 年表（対比記録）
+                    </button>
+                </div>
+            </div>
+
+            <!-- クイズプレイ画面 -->
+            <div id="quiz-screen" class="hidden p-5 md:p-6">
+                <!-- 中断ボタンとモード案内 -->
+                <div class="flex justify-between items-center mb-3">
+                    <button onclick="confirmExit()" class="text-xs md:text-sm font-medium text-stone-500 hover:text-red-600 transition-colors bg-stone-100 hover:bg-red-50 py-1.5 px-3 rounded-lg flex items-center gap-1 border border-stone-200">
+                        <i class="fa-solid fa-house"></i> 中断して戻る
+                    </button>
+                    <div id="mode-badge" class="text-[10px] md:text-xs bg-amber-100 text-amber-800 font-bold px-2 py-1 rounded">
+                        通常修行
+                    </div>
+                </div>
+
+                <!-- ステータスバー -->
+                <div class="flex justify-between items-center mb-4 text-xs md:text-sm">
+                    <div class="text-stone-500 font-medium">
+                        問題: <span id="current-question-index" class="text-amber-800 font-bold text-base">1</span> / <span id="total-questions-count">10</span>
+                    </div>
+                    <div class="text-stone-500 font-medium flex items-center gap-1">
+                        現在の正解数: <span id="current-score" class="text-green-600 font-bold text-base">0</span>
+                    </div>
+                </div>
+
+                <!-- プログレスバー -->
+                <div class="w-full bg-stone-100 h-1.5 rounded-full mb-6 overflow-hidden">
+                    <div id="progress-bar" class="bg-amber-600 h-full transition-all duration-300" style="width: 10%"></div>
+                </div>
+
+                <!-- 問題文（できごと/年号） -->
+                <div class="mb-5 text-center min-h-[90px] flex flex-col justify-center bg-amber-50/50 p-4 rounded-xl border border-amber-100/50">
+                    <span id="question-label" class="text-xs font-semibold text-amber-800 mb-1.5 tracking-wider">この出来事が起こった年（西暦）は？</span>
+                    <h3 id="question-text" class="text-lg md:text-xl font-bold text-stone-900 leading-normal japanese-font">
+                        歴史のできごと
+                    </h3>
+                </div>
+
+                <!-- A. 年号直接入力エリア -->
+                <div id="input-mode-area" class="hidden">
+                    <div class="flex flex-col items-center mb-5">
+                        <div class="flex items-center gap-1.5 mb-2">
+                            <!-- 西暦入力マス4つ -->
+                            <div id="digit-0" class="w-12 h-14 border-2 border-stone-300 bg-stone-50 rounded-lg flex items-center justify-center text-2xl font-bold text-stone-800 transition-all"></div>
+                            <div id="digit-1" class="w-12 h-14 border-2 border-stone-300 bg-stone-50 rounded-lg flex items-center justify-center text-2xl font-bold text-stone-800 transition-all"></div>
+                            <div id="digit-2" class="w-12 h-14 border-2 border-stone-300 bg-stone-50 rounded-lg flex items-center justify-center text-2xl font-bold text-stone-800 transition-all"></div>
+                            <div id="digit-3" class="w-12 h-14 border-2 border-stone-300 bg-stone-50 rounded-lg flex items-center justify-center text-2xl font-bold text-stone-800 transition-all"></div>
+                            <span class="text-stone-600 font-bold text-lg ml-1">年</span>
+                        </div>
+                        <div id="input-help-text" class="text-xs text-stone-400">数字キーをタッチ、またはキーボードから4桁入力してください</div>
+                    </div>
+
+                    <!-- 画面キーパッド -->
+                    <div id="keypad" class="grid grid-cols-3 gap-2 mb-5 max-w-xs mx-auto">
+                        <button onclick="pressKey('1')" class="key-btn py-3 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg font-bold text-lg text-stone-700 transition-colors">1</button>
+                        <button onclick="pressKey('2')" class="key-btn py-3 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg font-bold text-lg text-stone-700 transition-colors">2</button>
+                        <button onclick="pressKey('3')" class="key-btn py-3 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg font-bold text-lg text-stone-700 transition-colors">3</button>
+                        <button onclick="pressKey('4')" class="key-btn py-3 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg font-bold text-lg text-stone-700 transition-colors">4</button>
+                        <button onclick="pressKey('5')" class="key-btn py-3 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg font-bold text-lg text-stone-700 transition-colors">5</button>
+                        <button onclick="pressKey('6')" class="key-btn py-3 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg font-bold text-lg text-stone-700 transition-colors">6</button>
+                        <button onclick="pressKey('7')" class="key-btn py-3 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg font-bold text-lg text-stone-700 transition-colors">7</button>
+                        <button onclick="pressKey('8')" class="key-btn py-3 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg font-bold text-lg text-stone-700 transition-colors">8</button>
+                        <button onclick="pressKey('9')" class="key-btn py-3 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg font-bold text-lg text-stone-700 transition-colors">9</button>
+                        <button onclick="pressKey('Backspace')" class="key-btn py-3 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-semibold text-sm transition-colors flex items-center justify-center"><i class="fa-solid fa-delete-left text-lg"></i></button>
+                        <button onclick="pressKey('0')" class="key-btn py-3 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg font-bold text-lg text-stone-700 transition-colors">0</button>
+                        <button onclick="submitAnswer()" id="submit-btn" class="key-btn py-3 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 disabled:hover:bg-amber-700 text-white rounded-lg font-bold text-sm transition-all" disabled>判定する</button>
+                    </div>
+                </div>
+
+                <!-- B. 逆4択選択エリア -->
+                <div id="choice-mode-area" class="hidden space-y-3 mb-5 max-w-lg mx-auto">
+                    <button onclick="selectChoice(0)" id="choice-0" class="choice-btn w-full p-3.5 text-left border-2 border-stone-200 hover:border-amber-700 hover:bg-amber-50 rounded-xl font-medium text-stone-700 transition-all duration-150 flex items-center justify-between group">
+                        <span id="choice-text-0" class="text-sm md:text-base leading-snug">選択肢 1</span>
+                        <span class="text-stone-300 group-hover:text-amber-700 transition-colors"><i class="fa-solid fa-angle-right"></i></span>
+                    </button>
+                    <button onclick="selectChoice(1)" id="choice-1" class="choice-btn w-full p-3.5 text-left border-2 border-stone-200 hover:border-amber-700 hover:bg-amber-50 rounded-xl font-medium text-stone-700 transition-all duration-150 flex items-center justify-between group">
+                        <span id="choice-text-1" class="text-sm md:text-base leading-snug">選択肢 2</span>
+                        <span class="text-stone-300 group-hover:text-amber-700 transition-colors"><i class="fa-solid fa-angle-right"></i></span>
+                    </button>
+                    <button onclick="selectChoice(2)" id="choice-2" class="choice-btn w-full p-3.5 text-left border-2 border-stone-200 hover:border-amber-700 hover:bg-amber-50 rounded-xl font-medium text-stone-700 transition-all duration-150 flex items-center justify-between group">
+                        <span id="choice-text-2" class="text-sm md:text-base leading-snug">選択肢 3</span>
+                        <span class="text-stone-300 group-hover:text-amber-700 transition-colors"><i class="fa-solid fa-angle-right"></i></span>
+                    </button>
+                    <button onclick="selectChoice(3)" id="choice-3" class="choice-btn w-full p-3.5 text-left border-2 border-stone-200 hover:border-amber-700 hover:bg-amber-50 rounded-xl font-medium text-stone-700 transition-all duration-150 flex items-center justify-between group">
+                        <span id="choice-text-3" class="text-sm md:text-base leading-snug">選択肢 4</span>
+                        <span class="text-stone-300 group-hover:text-amber-700 transition-colors"><i class="fa-solid fa-angle-right"></i></span>
+                    </button>
+                </div>
+
+                <!-- 結果フィードバック（回答後に表示） -->
+                <div id="feedback-area" class="hidden rounded-xl p-4 mb-4 flex flex-col gap-3 transition-all">
+                    <div class="flex items-start gap-3">
+                        <span id="feedback-icon" class="text-3xl mt-0.5"></span>
+                        <div>
+                            <h4 id="feedback-title" class="font-bold text-base mb-0.5">正解！</h4>
+                            <div id="feedback-text-main" class="text-xs md:text-sm text-stone-700 leading-relaxed font-semibold"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 歴史解説カード -->
+                    <div class="border-t border-stone-200/60 pt-3">
+                        <div class="bg-stone-50 border border-stone-200 rounded-xl p-3">
+                            <h5 class="font-bold text-xs text-stone-700 mb-1 flex items-center gap-1.5">
+                                <i class="fa-solid fa-book-open"></i> 歴史のミニ解説
+                            </h5>
+                            <p id="feedback-description" class="text-xs md:text-sm text-stone-600 leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 進むボタン -->
+                <div class="flex justify-end">
+                    <button id="next-btn" onclick="nextQuestion()" class="hidden bg-amber-800 hover:bg-amber-900 text-white font-bold py-2 px-5 rounded-lg transition-all items-center gap-1.5 text-sm">
+                        <span>次の問題へ</span> <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 結果画面 -->
+            <div id="result-screen" class="hidden p-6 md:p-8">
+                <div class="text-center mb-6">
+                    <div class="text-amber-600 text-5xl mb-3">
+                        <i class="fa-solid fa-award"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold japanese-font mb-1.5">修行結果</h2>
+                    <p id="result-mode-label" class="text-stone-500 text-xs">結果ロード中...</p>
+                </div>
+
+                <!-- スコアサマリー -->
+                <div class="bg-stone-50 rounded-2xl p-5 text-center border border-stone-200 mb-6 max-w-sm mx-auto">
+                    <div class="text-xs uppercase tracking-wider text-stone-500 font-bold mb-1">正解率</div>
+                    <div class="text-4xl font-black text-amber-800 mb-1.5">
+                        <span id="result-score">0</span><span class="text-xl font-normal text-stone-600"> / <span id="result-total">10</span>問</span>
+                    </div>
+                    <div id="result-evaluation" class="text-stone-700 font-bold text-sm"></div>
+                </div>
+
+                <!-- 間違えた問題の復習エリア -->
+                <div id="incorrect-review-area" class="hidden mb-6">
+                    <h3 class="font-bold text-stone-800 mb-2.5 text-xs md:text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation text-red-500"></i> 要復習の歴史
+                    </h3>
+                    <div id="incorrect-list" class="space-y-2 max-h-48 overflow-y-auto border border-stone-200 rounded-xl p-3 bg-white">
+                        <!-- ここに間違えた問題が追加されます -->
+                    </div>
+                </div>
+
+                <!-- アクションボタンエリア -->
+                <div class="flex flex-col gap-3 max-w-sm mx-auto">
+                    <!-- 間違えた問題だけやり直すボタン（間違えた問題がある場合のみ表示） -->
+                    <button id="btn-review-only" onclick="startReviewOnly()" class="hidden w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-triangle-exclamation animate-bounce"></i> 間違えた問題だけで再挑戦！
+                    </button>
+                    
+                    <div class="flex gap-3 w-full">
+                        <button onclick="restartGame()" class="flex-1 bg-amber-800 hover:bg-amber-900 text-white font-bold py-3 px-4 rounded-xl transition-all shadow flex items-center justify-center gap-1.5 text-sm">
+                            <i class="fa-solid fa-arrows-rotate"></i> もう一度全問
+                        </button>
+                        <button onclick="goToStart()" class="flex-1 bg-white hover:bg-stone-50 text-stone-700 border border-stone-300 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-1.5 text-sm">
+                            <i class="fa-solid fa-house"></i> トップに戻る
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- 年表（スタッツ）表示モーダル -->
+    <div id="timeline-screen" class="hidden fixed inset-0 bg-stone-900/70 flex items-center justify-center p-4 z-40">
+        <div class="bg-[#fcfbf9] rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl border border-stone-200 overflow-hidden animate-fade-in">
+            <!-- 年表ヘッダー -->
+            <div class="bg-amber-900 text-amber-50 p-4 flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg font-bold japanese-font flex items-center gap-2">
+                        <i class="fa-solid fa-chart-column"></i> 歴史年表＆学習スタッツ (日米欧対比)
+                    </h3>
+                    <p class="text-[10px] text-amber-200">日本と世界のできごとが西暦年ごとに縦にピタッと揃って並びます</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="resetAllStats()" class="text-xs bg-amber-800 hover:bg-red-800 hover:text-white text-amber-200 py-1.5 px-3 rounded-lg border border-amber-700/60 transition-all flex items-center gap-1">
+                        <i class="fa-solid fa-trash-can"></i> 記録初期化
+                    </button>
+                    <button onclick="closeTimeline()" class="text-xs bg-amber-950 hover:bg-amber-900 text-white font-bold py-1.5 px-3.5 rounded-lg transition-colors flex items-center gap-1">
+                        閉じる <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 年表メインスクロールエリア -->
+            <div class="flex-grow p-4 md:p-6 overflow-y-auto space-y-6">
+                <!-- ガイド -->
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs flex justify-between items-center text-stone-700 gap-4">
+                    <div class="flex items-center gap-2">
+                        <span class="text-amber-800 text-base"><i class="fa-solid fa-circle-info"></i></span>
+                        <span>下部の年表は**横スクロール**できます。中段の年号の「上」が日本史、「下」が世界史です。</span>
+                    </div>
+                    <div class="flex gap-3 font-semibold text-[10px] whitespace-nowrap">
+                        <span class="text-green-700"><i class="fa-solid fa-square-check text-green-600"></i> 正解数</span>
+                        <span class="text-red-700"><i class="fa-solid fa-square-xmark text-red-500"></i> 不正解数</span>
+                    </div>
+                </div>
+
+                <!-- スクロール年表コンテナ -->
+                <div class="timeline-scroll overflow-x-auto pb-4 bg-stone-100/50 border border-stone-200 rounded-xl p-4">
+                    <!-- 中央に一本の軸を通した、横並びの列コンテナ -->
+                    <div id="timeline-cols-container" class="flex gap-4 items-stretch select-none pb-2">
+                        <!-- JSで動的に「列」を生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 中断確認カスタムモーダル -->
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-stone-900/60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-stone-200 text-center animate-fade-in">
+            <div class="text-red-500 text-4xl mb-3">
+                <i class="fa-solid fa-circle-question"></i>
+            </div>
+            <h3 class="text-lg font-bold text-stone-900 mb-2 japanese-font">修行を中断しますか？</h3>
+            <p class="text-stone-500 text-sm mb-6 leading-relaxed">
+                これまでのスコアや進捗状況はリセットされてしまいますが、よろしいですか？
+            </p>
+            <div class="flex gap-3">
+                <button onclick="exitToStart()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">
+                    中断して戻る
+                </button>
+                <button onclick="closeConfirmModal()" class="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold py-2 px-4 rounded-lg transition-colors text-sm">
+                    続ける
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- フッター -->
+    <footer class="bg-stone-800 text-stone-400 text-center py-4 text-xs">
+        <div class="max-w-4xl mx-auto px-4">
+            <p>© 2026 歴史年号暗記アプリ. 完璧な暗記を手に入れよう！</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript 制御 -->
+    <script>
+        // 【1】日本史のデータベース（全48のできごと、一意の id と解説付き）
+        const japanDatabase = [
+            { id: "jp_1600", year: 1600, event: "関ヶ原の戦いが起こる", tags: ["battle"], description: "徳川家康率いる東軍と、石田三成率いる西軍が対決した戦いです。この戦いに勝利した徳川家康が天下の実権を握りました。" },
+            { id: "jp_1603", year: 1603, event: "徳川家康が征夷大将軍になる", tags: ["politics"], description: "徳川家康が朝廷から征夷大将軍に任命され、江戸に幕府を開きました。ここから約260年間続く江戸時代が始まりました。" },
+            { id: "jp_1612", year: 1612, event: "キリスト教の禁教令が出される", tags: ["law"], description: "江戸幕府が直轄地（領地）に対してキリスト教を信仰することを禁じた法律です。翌年には全国に広げられました。" },
+            { id: "jp_1615", year: 1615, event: "大坂夏の陣 / 武家諸法度が定められる", tags: ["battle", "law"], description: "大坂夏の陣で豊臣氏が滅亡し、戦国時代が完全に終わりました。幕府は同時に大名を厳しくコントロールするための法律「武家諸法度」を定めました。" },
+            { id: "jp_1635", year: 1635, event: "参勤交代の制度が定められる", tags: ["law", "politics"], description: "3代将軍徳川家光が武家諸法度を改正し、大名に1年おきに江戸と領地を行き来することを義務付けました。大名のお金を使わせて勢力を抑える目的がありました。" },
+            { id: "jp_1637", year: 1637, event: "島原・天草一揆が起こる", tags: ["battle", "incident"], description: "長崎の島原や天草地方で、キリシタンや農民たちが厳しい税金や弾圧に対して起こした日本最大規模の一揆です。天草四郎がリーダーとなりました。" },
+            { id: "jp_1639", year: 1639, event: "ポルトガル船の来航を禁止する", tags: ["foreign", "law"], description: "キリスト教の布教を防ぐため、幕府はポルトガル船の日本への来航を完全に禁止しました。これにより、いわゆる「鎖国（さこく）」が完成しました。" },
+            { id: "jp_1641", year: 1641, event: "オランダ商館を長崎の出島に移す", tags: ["foreign"], description: "平戸にあったオランダの貿易拠点を長崎の「出島」という人工の島に移しました。ここから西洋の貿易窓口は出島だけになりました。" },
+            { id: "jp_1669", year: 1669, event: "シャクシャインの戦いが起こる", tags: ["battle"], description: "アイヌ民族の指導者であるシャクシャインが、不当な取引を行っていた松前藩（北海道）の支配に対して立ち上がった戦いです。" },
+            { id: "jp_1680", year: 1680, event: "徳川綱吉が将軍となる", tags: ["politics"], description: "5代将軍となった徳川綱吉は、生き物を大切にする「生類憐れみの令」を出したことで有名です。学問や礼儀を重んじる政治を行いました。" },
+            { id: "jp_1709", year: 1709, event: "新井白石の財政改革", tags: ["reform"], description: "儒学者の新井白石が、質の落ちていた小判の金を増やして戻すなど、幕府の乱れた財政や儀礼を正した改革（正徳の治）です。" },
+            { id: "jp_1716", year: 1716, event: "徳川吉宗の享保の改革", tags: ["reform"], description: "8代将軍となった徳川吉宗が行った大改革です。新田開発、米の増産（米将軍）、目安箱の設置などを行い、財政を大きく立て直しました。" },
+            { id: "jp_1732", year: 1732, event: "享保の飢饉", tags: ["disaster"], description: "冷害や害虫（イナゴ）の大量発生によって、西日本を中心に深刻な食糧不足（飢饉）が発生した大災害です。" },
+            { id: "jp_1742", year: 1742, event: "公事方御定書が定められる", tags: ["law"], description: "将軍徳川吉宗が制定した、裁判や刑罰の基準をまとめた法律です。これによって全国で公平でスピーディな裁判ができるようになりました。" },
+            { id: "jp_1772", year: 1772, event: "田沼意次が老中となる", tags: ["politics"], description: "老中（事実上の最高責任者）になった田沼意次。商業を盛んにして税金をたくさん集め、国の財政を豊かにしようとする先進的な政治を行いました。" },
+            { id: "jp_1782", year: 1782, event: "天明の飢饉", tags: ["disaster"], description: "浅間山の大噴火や、東北地方の冷害などにより、全国で非常に多くの人々が食べ物に困り餓死した、江戸時代最大の飢饉の一つです。" },
+            { id: "jp_1787", year: 1787, event: "松平定信の寛政の改革", tags: ["reform"], description: "老中の松平定信が行った改革です。田沼意次の商業重視から、質素倹約（厳しく節約すること）や農村の再建を中心とした厳しい政治に戻しました。" },
+            { id: "jp_1792", year: 1792, event: "ラクスマンが根室に来航", tags: ["foreign"], description: "ロシアの使節ラクスマンが、日本の漂流民「大黒屋光太夫」を送り届けるとともに、日本と貿易を始めたいと求めて北海道の根室にやってきました。" },
+            { id: "jp_1798", year: 1798, event: "近藤重蔵が北海道東部を探検", tags: ["explore"], description: "幕府の命令で、近藤重蔵が北方を探検しました。択捉島（えとろふとう）に到達し、「大日本恵登呂府」という日本の領土であることを示す柱を立てました。" },
+            { id: "jp_1808", year: 1808, event: "間宮林蔵が樺太を探検", tags: ["explore"], description: "冒険家の間宮林蔵が樺太（サハリン）を探検し、樺太が陸続きではなく島であることを突き止めました。その間の海は「間宮海峡」と呼ばれています。" },
+            { id: "jp_1825", year: 1825, event: "幕府が異国船打払令を出す", tags: ["law", "foreign"], description: "日本に近づいてくる外国の船を見つけたら、理由を聞かずに大砲で攻撃して追い払うように命じた、とても強気で閉鎖的な法律です。" },
+            { id: "jp_1833", year: 1833, event: "天保の飢饉", tags: ["disaster"], description: "大雨や冷害による大凶作で起きた飢饉です。これによって人々は苦しみ、幕府に対する不満が全国で高まっていきました。" },
+            { id: "jp_1837", year: 1837, event: "大塩平八郎の乱が起こる", tags: ["battle", "incident"], description: "大坂町奉行所の元役人である大塩平八郎が、天保の飢饉に苦しむ貧しい人々を救うため、幕府に対して武装して立ち上がった衝撃的な事件です。" },
+            { id: "jp_1839", year: 1839, event: "蛮社の獄が起こる", tags: ["incident"], description: "渡辺崋山や高野長英など、西洋の学問を学ぶ学者たちが、幕府の外国船を追い払う政策を厳しく批判したため、逮捕されて処罰された事件です。" },
+            { id: "jp_1841", year: 1841, event: "水野忠邦の天保の改革", tags: ["reform"], description: "老中の水野忠邦が行った大改革です。物価を下げるために「株仲間」を解散させたり、倹約を強制したりしましたが、厳しすぎてわずか2年で失敗しました。" },
+            { id: "jp_1853", year: 1853, event: "ペリーが浦賀に来航", tags: ["foreign", "bakumatsu"], description: "アメリカの軍人ペリーが「黒船」と呼ばれる4隻の軍艦を率いて神奈川の浦賀に現れ、日本に大統領からの手紙を渡して開国（国を開くこと）を迫りました。" },
+            { id: "jp_1854", year: 1854, event: "日米和親条約を結ぶ", tags: ["treaty", "foreign", "bakumatsu"], description: "再びやってきたペリーの圧力に押され、幕府が結んだ条約です。下田と箱館の2つの港を開き、外国の船に水や食料を提供することを認めました（開国）。" },
+            { id: "jp_1858", year: 1858, event: "日米修好通商条約を結ぶ / 安政の大獄", tags: ["treaty", "foreign", "incident", "bakumatsu"], description: "大老の井伊直弼が、天皇の許可を得ずにアメリカと結んだ不平等な条約です。これに反対した吉田松陰などの大勢の武士や公家を、井伊直弼は「安政の大獄」で処刑しました。" },
+            { id: "jp_1860", year: 1860, event: "桜田門外の変", tags: ["incident", "bakumatsu"], description: "安政の大獄で仲間を殺された水戸藩などの元藩士たちが、雪の降る江戸城の桜田門外で、大老・井伊直弼を待ち伏せして暗殺した大事件です。" },
+            { id: "jp_1864", year: 1864, event: "四国連合艦隊が下関を占領", tags: ["foreign", "bakumatsu"], description: "イギリス、フランス、アメリカ、オランダの4つの国の連合艦隊が、山口県の長州藩下関にあった砲台を攻撃して占領しました。これで長州藩は攘夷（外国人を追い払うこと）の不可能さを知りました。" },
+            { id: "jp_1866", year: 1866, event: "薩長同盟", tags: ["alliance", "bakumatsu"], description: "坂本龍馬や中岡慎太郎の仲立ちによって、犬猿の仲（大嫌い同士）だった薩摩藩（西郷隆盛）と長州藩（木戸孝允）が、幕府を倒すために結んだ秘密の同盟です。" },
+            { id: "jp_1867", year: 1867, event: "大政奉還 / 王政復古の大号令", tags: ["politics", "bakumatsu"], description: "15代将軍徳川慶喜が、政権（国を治める権利）を天皇に返上しました。これによって鎌倉時代から約700年続いた武士の政治が幕を閉じました。" },
+            { id: "jp_1868", year: 1868, event: "戊辰戦争 / 五箇条の御誓文", tags: ["battle", "politics", "bakumatsu"], description: "新政府軍と旧幕府軍の間で「戊辰戦争」という国内最大の内戦が始まりました。明治天皇は新政府の新しい国づくりの基本方針として「五箇条の御誓文」を発表しました。" },
+            { id: "jp_1869", year: 1869, event: "版籍奉還 / 蝦夷地を北海道と改称", tags: ["reform", "politics", "meiji"], description: "大名たちから、土地（版）と人民（籍）を明治天皇に返還させ、国のコントロール下に置しました。また、蝦夷地と呼ばれていた場所が「北海道」と改められました。" },
+            { id: "jp_1871", year: 1871, event: "廃藩置県 / 解放令 / 岩倉使節団の派遣", tags: ["reform", "politics", "meiji"], description: "これまでの「藩」をすべて無くして「県」を置き、東京から新しい知事を送って中央集権化（国が一丸となること）を進めました。差別されていた人々を平民とする「解放令」も出されました。" },
+            { id: "jp_1873", year: 1873, event: "徴兵令 / 地租改正", tags: ["reform", "law", "meiji"], description: "20歳になった男子に軍隊へ行く義務を課した「徴兵令」と、土地の値段（地価）の3%を現金で政府に納めさせる「地租改正」という、明治維新の超重要改革です。" },
+            { id: "jp_1874", year: 1874, event: "民撰議院設立の建白書", tags: ["politics", "meiji"], description: "板垣退助や後藤象二郎らが、「国民が選んだ議員による国会を作って、話し合いの政治をすべきだ」と政府に要求した文書。ここから自由民権運動が始まりました。" },
+            { id: "jp_1875", year: 1875, event: "樺太・千島交換条約を結ぶ", tags: ["treaty", "foreign", "meiji"], description: "ロシアとの間で国境をはっきりさせるために結んだ条約です。樺太（サハリン）をロシアの領土とし、千島列島を日本の領土に交換することを決めました。" },
+            { id: "jp_1876", year: 1876, event: "日朝修好条規を結ぶ", tags: ["treaty", "foreign", "meiji"], description: "朝鮮に軍艦を送って脅し、無理やり開国させた条約です。日本側の領事裁判権を認めさせるなど、日本にとても有利な不平等条約でした。" },
+            { id: "jp_1877", year: 1877, event: "西南戦争が起こる", tags: ["battle", "meiji"], description: "明治政府に不満を持った士族（元武士）たち、西郷隆盛をリーダーに担いで起こした、日本国内最後にして最大の武力反乱です。新政府の軍隊が勝利しました。" },
+            { id: "jp_1879", year: 1879, event: "沖縄県を設ける（琉球処分）", tags: ["politics", "meiji"], description: "明治政府が軍隊や警察を沖縄に送り、それまであった「琉球王国（琉球藩）」を完全に無くして、新しく「沖縄県」を設置しました（琉球処分）。" },
+            { id: "jp_1881", year: 1881, event: "自由党・立憲改進党の結成", tags: ["politics", "meiji"], description: "板垣退助をリーダーとする「自由党」が結成されました。翌年には大隈重信をリーダーとする「立憲改進党」が結成され、国会開設に向けて政党が誕生していきました。" },
+            { id: "jp_1885", year: 1885, event: "内閣制度が発足する", tags: ["politics", "meiji"], description: "近代的な政治を行うために太政官制を廃止し、現在の内閣制度が作られました。初代の内閣総理大臣（首相）には長州藩出身の「伊藤博文」が就任しました。" },
+            { id: "jp_1889", year: 1889, event: "大日本帝国憲法の発布", tags: ["law", "politics", "meiji"], description: "ドイツ（プロイセン）の憲法を参考にして作られた、アジアで初めての本格的な近代憲法です。天皇が極めて強い権限（主権）を持っていました。" },
+            { id: "jp_1890", year: 1890, event: "第一回帝国議会 / 教育勅語の発布", tags: ["politics", "law", "meiji"], description: "憲法ができたことによって、日本で初めての国会（帝国議会）が開かれました。同年に、学校などで道徳の基本とされた「教育勅語」も出されました。" },
+            { id: "jp_1894", year: 1894, event: "条約改正（治外法権の撤廃） / 日清戦争", tags: ["treaty", "battle", "foreign", "meiji"], description: "外相・陸奥宗光の活躍により、悲願だった領事裁判権（治外法権）の撤廃に成功しました。同じ年、朝鮮の支配をめぐって清（中国）との間で日清戦争が始まりました。" },
+            { id: "jp_1895", year: 1895, event: "下関条約 / 三国干渉", tags: ["treaty", "foreign", "meiji"], description: "日清戦争に大勝利した日本は、清と下関条約を結び、多額の賠償金や遼東半島・台湾を譲り受けました。しかし直後にロシア、ドイツ、フランスから「遼東半島を清に返しなさい」と三国干渉を受けました。" },
+            { id: "jp_1902", year: 1902, event: "日英同盟", tags: ["alliance", "foreign", "meiji"], description: "満州や朝鮮に進出してこようとする大国ロシアに対抗するため、日本は当時、世界最強の国だったイギリスと同盟を結びました。" },
+            { id: "jp_1904", year: 1904, event: "日露戦争", tags: ["battle", "foreign", "meiji"], description: "朝鮮や満州の支配権を巡って、日本と大国ロシアが衝突した大戦争です。日本は多大な犠牲を払いながらも優勢を保ちました。" },
+            { id: "jp_1905", year: 1905, event: "ポーツマス条約", tags: ["treaty", "foreign", "meiji"], description: "アメリカ大統領の仲介によって結ばれた、日露戦争の講和条約です。ロシアから樺太の南半分や、朝鮮での日本の優先権などを認めさせましたが、賠償金はもらえませんでした。" },
+            { id: "jp_1910", year: 1910, event: "大逆事件 / 韓国を併合する", tags: ["incident", "politics", "foreign", "meiji"], description: "明治天皇を暗殺しようとしたとして幸徳秋水ら社会主義者が処刑された「大逆事件」と、韓国を完全に日本の領土とする「韓国併合」が行われました。" },
+            { id: "jp_1911", year: 1911, event: "条約改正の完成（関税自主権の確立）", tags: ["treaty", "foreign", "meiji"], description: "外相・小村寿太郎の粘り強い交渉によって、日本が輸入する商品の税金を自分で決める「関税自主権」を完全に取り戻し、明治の初めからの不平等条約が完全に改正されました。" }
+        ];
+
+        // 【2】世界史のデータベース（全39のできごと、解説付き）
+        const worldDatabase = [
+            { id: "wd_1600", year: 1600, event: "イギリスが東インド会社を設立する", tags: ["foreign", "politics"], description: "イギリスがアジア地域での貿易を独占し、海外領土を広げるための拠点として「東インド会社」という特別な会社を立ち上げました。" },
+            { id: "wd_1620", year: 1620, event: "イギリス人の北アメリカ移住が始まる", tags: ["foreign"], description: "イギリスで宗教的な弾圧を受けていた清教徒（ピルグリム・ファーザーズ）たちが、メイフラワー号という船に乗って自由を求め、北アメリカの東海岸へ渡りました。" },
+            { id: "wd_1629", year: 1629, event: "オランダがジャワに進出する", tags: ["foreign"], description: "当時、貿易大国だったオランダが現在のインドネシアのジャワ島（バタヴィア）に進出して拠点を築き、高価だったスパイス（香料）の貿易を独占しました。" },
+            { id: "wd_1642", year: 1642, event: "イギリスのピューリタン革命が起こる (〜49)", tags: ["battle", "politics"], description: "イギリスで国王のわがままな政治（専制政治）に怒った議会の人々（クロムウェルら清教徒）が立ち上がり、王様を倒して共和国を建てた市民革命です。" },
+            { id: "wd_1644", year: 1644, event: "明が滅び、清の中国支配が始まる", tags: ["politics", "battle"], description: "中国で明（みん）という帝国が農民の反乱によって滅亡しました。その隙を突いて、北方の満州族が建てた「清（しん）」が北京に入り、中国全土の新しい支配者となりました。" },
+            { id: "wd_1661", year: 1661, event: "フランスでルイ14世の絶対王政が始まる", tags: ["politics"], description: "フランス国王ルイ14世が「朕は国家なり（私が国そのものだ）」と言い放ち、自分の思い通りに政治を行う「絶対王政（親政）」をスタートさせました。太陽王とも呼ばれます。" },
+            { id: "wd_1688", year: 1688, event: "イギリスで名誉革命が起こる", tags: ["politics", "incident"], description: "イギリスで、カトリックを押し付けようとした国王を追放し、新しく別の国王を立てた革命です。一滴の血も流さずに平和的に成功したため「名誉革命」と呼ばれます。" },
+            { id: "wd_1689", year: 1689, event: "イギリスで「権利の章典」が出される", tags: ["law", "politics"], description: "名誉革命の翌年に作られた法律です。「国王でも議会の許しなしに勝手に法律を作ったり、税金を集めたりしてはならない」と定め、イギリスの議会政治の基礎を固めました。" },
+            { id: "wd_1748", year: 1748, event: "モンテスキューが『法の精神』を著す", tags: ["culture", "law"], description: "フランスの思想家モンテスキューが、権力が一箇所に集中して独裁者が出ないように、国を「立法」「行政」「司法」の3つに分ける『三権分立』を提唱した本です。" },
+            { id: "wd_1762", year: 1762, event: "ルソーが『社会契約論』を著す", tags: ["culture", "politics"], description: "フランスの思想家ルソーが、「国の主権は王様ではなく国民にある（人民主権）」と主張した本です。この考え方が、のちのフランス革命の大きなエネルギーとなりました。" },
+            { id: "wd_1765", year: 1765, event: "ワットが蒸気機関を改良する", tags: ["reform", "culture"], description: "ジェームズ・ワットが蒸気機関を劇的に使いやすく改良しました。これによって、工場での大量生産や蒸気機関車などが生まれ、世界の歴史を変える「産業革命」が急速に進みました。" },
+            { id: "wd_1775", year: 1775, event: "アメリカの独立戦争が起こる (〜83)", tags: ["battle", "politics"], description: "北アメリカの13の植民地が、イギリス（本国）からの理不尽な課税や支配に反対し、独立を求めてイギリス軍と戦い始めた戦争です。" },
+            { id: "wd_1776", year: 1776, event: "アメリカが独立宣言を発表する", tags: ["law", "politics"], description: "独立戦争の最中、植民地代表たちがフィラデルフィアで発表した宣言です。「すべての人間は自由・平等であり、自分の幸福を求める権利がある」と高らかに宣言しました。" },
+            { id: "wd_1789", year: 1789, event: "フランス革命が起こり、人権宣言が採択される", tags: ["battle", "law", "politics"], description: "重い税金や身分差別に苦しんでいたフランスの市民たちが、パリのバスティーユ牢獄を襲撃して始まった大革命です。自由と平等を掲げた「人権宣言」が採択されました。" },
+            { id: "wd_1804", year: 1804, event: "ナポレオンがフランス皇帝に即位する", tags: ["politics"], description: "フランス革命後の大混乱を、軍隊での圧倒的な実力で抑え込んで国民に熱狂的に支持されたナポレオンが、ついに投票によってフランスの「皇帝」に即位しました。" },
+            { id: "wd_1814", year: 1814, event: "ナポレオンが退位する", tags: ["politics"], description: "ロシア遠征に失敗したナポレオンは、周囲の国々（同盟軍）にパリを占領され、ついに皇帝を退位してエルバ島という小さな島へ流されました。" },
+            { id: "wd_1832", year: 1832, event: "イギリスで第1回選挙法改正が行われる", tags: ["law", "reform"], description: "産業革命によって成長した、工場主などの新しいお金持ち（資本家）にも選挙権を与えるように、イギリスの選挙制度を初めて大きく改正した出来事です。" },
+            { id: "wd_1840", year: 1840, event: "アヘン戦争が起こる (〜42)", tags: ["battle", "foreign"], description: "イギリスが清（中国）にアヘン（麻薬）を密輸入していたのを、清が取り締まったことから起きた戦争です。大敗した清は香港をイギリスに取られ、東アジアのバランスが崩れました。" },
+            { id: "wd_1848", year: 1848, event: "ヨーロッパ各地で1848年革命（諸国民の春）が起こる", tags: ["battle", "politics"], description: "フランスの「二月革命」をきっかけに、オーストリアやドイツなどヨーロッパ全体で「王様の支配をなくし、憲法をつくり自由な国にしよう！」という革命が一斉に勃発しました。" },
+            { id: "wd_1851", year: 1851, event: "清で太平天国の運動が始まる (〜64)", tags: ["battle", "incident"], description: "洪秀全（こうしゅうぜん）がキリスト教をもとに作った組織を率いて、弱り切っていた清を倒し、土地をみんなで平等に分け合う「太平天国」という理想郷を作ろうとした巨大な反乱です。" },
+            { id: "wd_1853", year: 1853, event: "クリミア戦争が起こる (〜56)", tags: ["battle", "foreign"], description: "ロシアが領土を南へ広げようとしたのを防ぐために、イギリス、フランス、オスマン帝国（トルコ）などが同盟を結んで黒海のクリミア半島でロシア軍と戦った大戦争です。" },
+            { id: "wd_1856", year: 1856, event: "アロー戦争（イギリス・フランスと清の戦争）が起こる", tags: ["battle", "foreign"], description: "アロー号事件などを口実に、イギリスとフランスが連合して清を攻撃した「第2次アヘン戦争」です。これによって清はさらに港を開かされ、力を失っていきました。" },
+            { id: "wd_1857", year: 1857, event: "インド大反乱が起こる (〜59)", tags: ["battle", "foreign", "incident"], description: "東インド会社に雇われていたインド人兵士（シパーヒー）たちが、宗教的な禁忌を破る火薬袋の使用を強制されたことに怒り、イギリスの支配に対して一斉に起こした最初の大反乱です。" },
+            { id: "wd_1861", year: 1861, event: "アメリカの南北戦争が始まる (〜65) / ロシアで農奴解放令が出される", tags: ["battle", "law", "reform"], description: "アメリカでは奴隷制や貿易を巡り「北部」と「南部」に分かれて猛烈な内戦が勃発。ロシアでは、皇帝が遅れていた国を近代化するため、地主に縛られていた農民を自由にする「農奴解放令」を出しました。" },
+            { id: "wd_1863", year: 1863, event: "アメリカで奴隷解放宣言が出される", tags: ["law", "politics"], description: "南北戦争の最中、リンカーン大統領が発表した宣言です。南部（敵対地域）の奴隷を今すぐ自由にすることを命じ、戦争の正義が「奴隷解放」にあることを世界にアピールしました。" },
+            { id: "wd_1867", year: 1867, event: "マルクスが『資本論』を出版する", tags: ["culture", "politics"], description: "ドイツの思想家カール・マルクスが、資本主義社会のお集仕組みを徹底的に分析した本です。「労働者が不当に安く働かされている仕組み」を暴き、世界中に社会主義の影響を与えました。" },
+            { id: "wd_1869", year: 1869, event: "スエズ運河が開通する", tags: ["foreign", "reform"], description: "地中海と紅海を結び、ヨーロッパとアジアを繋ぐ全長約160kmの巨大な人工の海路（運河）がエジプトに完成しました。これによって船の旅が何週間も短縮されました。" },
+            { id: "wd_1870", year: 1870, event: "プロイセン・フランス戦争が起こる (〜71) / イタリアが統一される", tags: ["battle", "politics"], description: "ドイツをまとめたいプロイセン（ビスマルク首相）が、フランスのナポレオン3世と戦って勝利した戦争です。同じ混乱期に、イタリアもローマを回収して完全統一を成し遂げました。" },
+            { id: "wd_1871", year: 1871, event: "ドイツ帝国が統一・成立する", tags: ["politics"], description: "プロイセン・フランス戦争でフランスに大勝利したことで、それまでバラバラだったドイツの国々が一つの巨大な「ドイツ帝国」としてついに統一を完成させました。" },
+            { id: "wd_1875", year: 1875, event: "江華島事件が起こる", tags: ["incident", "foreign"], description: "日本の軍艦が朝鮮のソウル近くにある江華島（こうかとう）に近づいて挑発し、衝突を起こした事件です。翌年、これをもとに日本は朝鮮に不平等条約を結ばせました。" },
+            { id: "wd_1877", year: 1877, event: "イギリスがインドを完全に支配（帝国化）する", tags: ["politics", "foreign"], description: "インド大反乱を鎮圧したイギリスは東インド会社を解散し、イギリスのヴィクトリア女王を皇帝とする「インド帝国」を正式にスタートさせ、完全に自国の領土としました。" },
+            { id: "wd_1882", year: 1882, event: "ドイツ・オーストリア・イタリアの三国同盟が結ばれる", tags: ["alliance", "politics"], description: "フランスの復讐を恐れたドイツ（ビスマルク首相）が、オーストリア、イタリアを誘って結んだ秘密の防衛軍事同盟です。のちの第1次世界大戦の一方のグループとなります。" },
+            { id: "wd_1894", year: 1894, event: "朝鮮で甲午農民戦争が起こる", tags: ["battle", "incident"], description: "朝鮮で東学（とうがく）という宗教の信者や農民たちが「税金を安くしろ」「外国人を追い出せ」と立ち上がった大反乱です。清と日本がこの鎮圧を名目に出兵し、日清戦争が始まりました。" },
+            { id: "wd_1900", year: 1900, event: "清で義和団事件が起こる (〜1901)", tags: ["battle", "incident", "foreign"], description: "中国で「扶清滅洋（ふしんめつよう：清を助けて西洋人を滅ぼそう）」と叫ぶ、武術を使う集団（義和団）が外国人大使館などを襲撃した事件です。日本を含む8カ国の連合軍に鎮圧されました。" },
+            { id: "wd_1904", year: 1904, event: "ロシアのシベリア鉄道が全線開通する", tags: ["reform"], description: "ロシア帝国が、首都ペテルブルクから極東のウラジオストクまで、アジアを横断する約9000kmの「シベリア鉄道」を全線開通させました。これによってアジアへの兵士の移動が簡単になりました。" },
+            { id: "wd_1907", year: 1907, event: "イギリス・フランス・ロシアの三国協商が成立する", tags: ["alliance", "politics", "foreign"], description: "ドイツの急激な進出に対抗するため、それまでライバルだったイギリス、フランス、ロシアの3カ国が結んだ友好・協力体制です。三国同盟と対立するグループとなりました。" },
+            { id: "wd_1911", year: 1911, event: "清で辛亥革命が起こる", tags: ["battle", "politics"], description: "孫文（そんぶん）の『三民主義（民族・民権・民生）』に影響を受けた軍人や国民が、一斉に立ち上がって起こした革命です。これによって清を倒し、2000年以上続いた皇帝政治が終わりました。" },
+            { id: "wd_1912", year: 1912, event: "中華民国が成立する", tags: ["politics"], description: "辛亥革命の成功により、孫文をリーダー（臨時大総統）として建国された、アジアで初めての近代的な共和国です。" },
+            { id: "wd_1913", year: 1913, event: "清が完全に滅亡する", tags: ["politics"], description: "中華民国の建国と、最後の皇帝である宣統帝（溥儀：ふぎ）が完全に退位したことをもって、中国最後の帝国であった「清（しん）」が正式に滅亡しました。" }
+        ];
+
+        // 状態変数
+        let activeDatabase = [];       // 現在選ばれている歴史データベース
+        let currentQuestions = [];      // 出題するクイズオブジェクトの配列
+        let questionIndex = 0;
+        let score = 0;
+        let settingsQuestionCount = 10; // 数値、または 'all'
+        let settingsField = 'japan';    // 'japan' または 'world'
+        let settingsMode = 'input';     // 'input' または 'choice'
+        let isWeakOnlyMode = false;     // よく間違えた問題モードかどうか
+        
+        let incorrectAnswers = [];      // 復習リスト表示用のデータ
+        let incorrectQuestions = [];    // 間違えた問題のオリジナルクイズ配列（復習機能で使用）
+        let isReviewMode = false;       // 今が復習モードかどうか
+
+        let currentInput = "";          // 現在入力されているキー
+        let hasAnswered = false;
+
+        // ページ読み込み時にセット
+        window.onload = function() {
+            setHistoryField('japan'); // デフォルトは日本史
+            setQuizMode('input');      // デフォルトは直接入力
+            setQuestionCount(10);      // デフォルトは10問
+            setTrainingStyle(false);   // 初期状態で通常修行を選択状態にする
+            updateWeakBadge();         // 苦手バッジを更新
+
+            // 物理キーボードのキー入力を監視
+            document.addEventListener('keydown', handlePhysicalKeyboard);
+        };
+
+        // ================= スタッツ管理（localStorage） =================
+        const STATS_KEY = "history_quiz_stats_v3";
+        function getStats() {
+            const stats = localStorage.getItem(STATS_KEY);
+            return stats ? JSON.parse(stats) : {};
+        }
+
+        function saveStats(id, isCorrect) {
+            const stats = getStats();
+            if (!stats[id]) {
+                stats[id] = { correct: 0, wrong: 0 };
+            }
+            if (isCorrect) {
+                stats[id].correct += 1;
+            } else {
+                stats[id].wrong += 1;
+            }
+            localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+            updateWeakBadge();
+        }
+
+        // 記録を初期化する
+        function resetAllStats() {
+            if (confirm("これまでのすべての正解・不正解の記録をリセットしますか？\n（苦手克服モード用のデータもリセットされます）")) {
+                localStorage.removeItem(STATS_KEY);
+                updateWeakBadge();
+                renderTimeline(); // 年表を再描画
+                alert("記録をすべてクリアしました！");
+            }
+        }
+
+        // ================= 苦手克服対象の抽出ロジック =================
+        // 条件：
+        // 1. 過去に間違えた回数（wrong）が1回以上である
+        // 2. 正解した回数（correct）が間違えた回数（wrong）の1.5倍未満である（correct < wrong * 1.5）
+        // 3. 上記に該当するものを「間違えた回数（wrong）」が多い順に並べ、上位5位（同率含む）までを抽出する
+        function getWeakItemsForField(database, stats) {
+            // 1. 未克服の苦手問題を抽出
+            const candidates = database.filter(item => {
+                const s = stats[item.id];
+                return s && s.wrong > 0 && s.correct < s.wrong * 1.5;
+            });
+            
+            if (candidates.length === 0) return [];
+
+            // 2. 間違えた回数（wrong）が多い順にソート（同率の場合は正解数が少ない順）
+            candidates.sort((a, b) => {
+                const sA = stats[a.id];
+                const sB = stats[b.id];
+                const wrongDiff = sB.wrong - sA.wrong;
+                if (wrongDiff !== 0) return wrongDiff;
+                return sA.correct - sB.correct;
+            });
+
+            // 3. 5位（同率含む）の境界判定
+            if (candidates.length <= 5) {
+                return candidates;
+            }
+
+            // ソート後5番目（インデックス4）のwrong回数を閾値にする
+            const thresholdWrong = stats[candidates[4].id].wrong;
+
+            // 閾値（5位のwrong数）と同等、またはそれ以上に間違えた問題をすべて抽出
+            return candidates.filter(item => stats[item.id].wrong >= thresholdWrong);
+        }
+
+        // スタート画面の苦手バッジの数字を更新
+        function updateWeakBadge() {
+            const stats = getStats();
+            
+            // 各分野の苦手克服対象の問題を取得
+            const jpWeakItems = getWeakItemsForField(japanDatabase, stats);
+            const wdWeakItems = getWeakItemsForField(worldDatabase, stats);
+
+            const currentFieldWeakCount = (settingsField === 'japan') ? jpWeakItems.length : wdWeakItems.length;
+            const badge = document.getElementById("weak-count-badge");
+            
+            if (currentFieldWeakCount > 0) {
+                badge.textContent = currentFieldWeakCount;
+                badge.classList.remove("hidden");
+            } else {
+                badge.classList.add("hidden");
+            }
+        }
+
+        // 物理キーボード対応
+        function handlePhysicalKeyboard(e) {
+            if (document.getElementById("quiz-screen").classList.contains("hidden")) return;
+            
+            // 入力モードのときのみ
+            if (settingsMode === 'input') {
+                if (hasAnswered) {
+                    if (e.key === "Enter") {
+                        nextQuestion();
+                    }
+                    return;
+                }
+
+                if (/^[0-9]$/.test(e.key)) {
+                    pressKey(e.key);
+                } else if (e.key === "Backspace") {
+                    pressKey("Backspace");
+                } else if (e.key === "Enter") {
+                    if (currentInput.length === 4) {
+                        submitAnswer();
+                    }
+                }
+            } else if (settingsMode === 'choice') {
+                if (!hasAnswered && /^[1-4]$/.test(e.key)) {
+                    selectChoice(parseInt(e.key) - 1);
+                } else if (hasAnswered && e.key === "Enter") {
+                    nextQuestion();
+                }
+            }
+        }
+
+        // 分野（日本史／世界史）を切り替える
+        function setHistoryField(field) {
+            settingsField = field;
+            const btnJapan = document.getElementById("btn-field-japan");
+            const btnWorld = document.getElementById("btn-field-world");
+            const btnAll = document.getElementById("btn-count-all");
+
+            if (field === 'japan') {
+                activeDatabase = [...japanDatabase];
+                
+                // コンパクトタブのカラー切り替え
+                btnJapan.className = "flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center bg-amber-900 text-white shadow-sm";
+                btnWorld.className = "flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center text-stone-600 hover:text-stone-900";
+                
+                btnAll.textContent = "全48問";
+                document.getElementById("field-stats-badge").textContent = "江戸〜明治 (全48問)";
+            } else {
+                activeDatabase = [...worldDatabase];
+                
+                // コンパクトタブのカラー切り替え
+                btnJapan.className = "flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center text-stone-600 hover:text-stone-900";
+                btnWorld.className = "flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center bg-amber-900 text-white shadow-sm";
+                
+                btnAll.textContent = "全39問";
+                document.getElementById("field-stats-badge").textContent = "近代市民革命〜帝国主義 (全39問)";
+            }
+
+            updateWeakBadge();
+            // 出題数ボタンのアクティブ・非アクティブを再適用
+            setQuestionCount(settingsQuestionCount);
+        }
+
+        // クイズモード（入力／4択）を切り替える
+        function setQuizMode(mode) {
+            settingsMode = mode;
+            const btnInput = document.getElementById("btn-mode-input");
+            const btnChoice = document.getElementById("btn-mode-choice");
+
+            if (mode === 'input') {
+                btnInput.className = "py-2 px-3 bg-amber-900 text-white rounded-xl text-xs font-bold transition-all border border-amber-900 flex flex-col items-center justify-center gap-0.5 shadow-inner";
+                btnChoice.className = "py-2 px-3 bg-white text-stone-700 border border-stone-300 rounded-xl text-xs font-bold hover:bg-stone-50 transition-all flex flex-col items-center justify-center gap-0.5";
+            } else {
+                btnInput.className = "py-2 px-3 bg-white text-stone-700 border border-stone-300 rounded-xl text-xs font-bold hover:bg-stone-50 transition-all flex flex-col items-center justify-center gap-0.5";
+                btnChoice.className = "py-2 px-3 bg-amber-900 text-white rounded-xl text-xs font-bold transition-all border border-amber-900 flex flex-col items-center justify-center gap-0.5 shadow-inner";
+            }
+        }
+
+        // 修行スタイル（通常 vs 苦手克服）の設定
+        function setTrainingStyle(isWeak) {
+            isWeakOnlyMode = isWeak;
+            const btnNormal = document.getElementById("btn-style-normal");
+            const btnWeak = document.getElementById("btn-style-weak");
+            const qCountSelector = document.getElementById("question-count-selector");
+            const desc = document.getElementById("style-desc");
+
+            if (isWeak) {
+                // コンパクトタブのカラー切り替え
+                btnNormal.className = "flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center flex items-center justify-center gap-1.5 text-stone-600 hover:text-stone-900";
+                btnWeak.className = "flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center flex items-center justify-center gap-1.5 bg-amber-900 text-white shadow-sm";
+                
+                qCountSelector.classList.add("opacity-50", "pointer-events-none"); // 苦手克服は全対象のため問題数選択を半透明化
+                desc.textContent = "よく間違えた問題ワースト5位（同率含む）から優先出題します。正解が不正解の1.5倍に達すると克服リストから卒業します。";
+            } else {
+                // コンパクトタブのカラー切り替え
+                btnNormal.className = "flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center flex items-center justify-center gap-1.5 bg-amber-900 text-white shadow-sm";
+                btnWeak.className = "flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center flex items-center justify-center gap-1.5 text-stone-600 hover:text-stone-900";
+                
+                qCountSelector.classList.remove("opacity-50", "pointer-events-none");
+                desc.textContent = "全ての出来事からランダムに出題します。";
+            }
+        }
+
+        // 出題数を設定する
+        function setQuestionCount(count) {
+            settingsQuestionCount = count;
+            const counts = [10, 20, 'all'];
+
+            counts.forEach(c => {
+                const btn = document.getElementById(`btn-count-${c}`);
+                if (c === count) {
+                    btn.className = "flex-1 py-1.5 px-3 bg-amber-900 text-white rounded-lg text-xs font-semibold transition-colors";
+                } else {
+                    btn.className = "flex-1 py-1.5 px-3 bg-white text-stone-700 border border-stone-300 rounded-lg text-xs font-semibold hover:bg-stone-50 transition-colors";
+                }
+            });
+        }
+
+        // 配列シャッフルアルゴリズム（フィッシャー・イェーツ）
+        function shuffle(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // 途中で戻る機能の処理
+        function confirmExit() {
+            document.getElementById("confirm-modal").classList.remove("hidden");
+        }
+
+        function closeConfirmModal() {
+            document.getElementById("confirm-modal").classList.add("hidden");
+        }
+
+        function exitToStart() {
+            closeConfirmModal();
+            goToStart();
+        }
+
+        // ゲーム開始 (通常プレイ & 苦手克服)
+        function startGame() {
+            isReviewMode = false;
+            const stats = getStats();
+            
+            if (isWeakOnlyMode) {
+                // 【苦手克服モードの動作：新ルール適用】
+                const weakItems = getWeakItemsForField(activeDatabase, stats);
+                
+                if (weakItems.length === 0) {
+                    alert("苦手克服モードの対象となる問題がありません！\n（間違えた回数に対して正解数が1.5倍未満の問題が対象になります）\nまずは「通常修行」をプレイして、間違えた歴史を記録しましょう。");
+                    setTrainingStyle(false); // 通常モードに強制切り替え
+                    return;
+                }
+
+                // 苦手な上位5位（同率含む）の中からさらにシャッフルしてランダム順で出題
+                currentQuestions = shuffle(weakItems);
+
+                document.getElementById("mode-badge").textContent = "苦手克服";
+                document.getElementById("mode-badge").className = "text-[10px] md:text-xs bg-red-600 text-white font-bold px-2 py-1 rounded";
+                document.getElementById("progress-bar").className = "bg-red-600 h-full transition-all duration-300";
+            } else {
+                // 通常モードの動作
+                const shuffledDb = shuffle(activeDatabase);
+                let count = settingsQuestionCount;
+                if (count === 'all') {
+                    count = activeDatabase.length;
+                }
+                currentQuestions = shuffledDb.slice(0, count);
+
+                document.getElementById("mode-badge").textContent = "通常修行";
+                document.getElementById("mode-badge").className = "text-[10px] md:text-xs bg-amber-100 text-amber-800 font-bold px-2 py-1 rounded";
+                document.getElementById("progress-bar").className = "bg-amber-600 h-full transition-all duration-300";
+            }
+            
+            questionIndex = 0;
+            score = 0;
+            incorrectAnswers = [];
+            incorrectQuestions = []; // 不正解オリジナル配列もリセット
+            
+            document.getElementById("start-screen").classList.add("hidden");
+            document.getElementById("quiz-screen").classList.remove("hidden");
+            document.getElementById("result-screen").classList.add("hidden");
+            
+            document.getElementById("current-score").textContent = score;
+            document.getElementById("total-questions-count").textContent = currentQuestions.length;
+
+            loadQuestion();
+        }
+
+        // 間違えた問題だけでやり直す処理（クイズ終わりのリトライ用）
+        function startReviewOnly() {
+            isReviewMode = true;
+            
+            // 間違えた問題だけをシャッフルしてロード
+            currentQuestions = shuffle(incorrectQuestions);
+            
+            questionIndex = 0;
+            score = 0;
+            incorrectAnswers = [];
+            incorrectQuestions = []; // 今回間違えた用をリセット
+
+            document.getElementById("mode-badge").textContent = "苦手復習";
+            document.getElementById("mode-badge").className = "text-[10px] md:text-xs bg-red-100 text-red-800 font-bold px-2 py-1 rounded";
+            document.getElementById("progress-bar").className = "bg-red-500 h-full transition-all duration-300";
+
+            document.getElementById("start-screen").classList.add("hidden");
+            document.getElementById("quiz-screen").classList.remove("hidden");
+            document.getElementById("result-screen").classList.add("hidden");
+            
+            document.getElementById("current-score").textContent = score;
+            document.getElementById("total-questions-count").textContent = currentQuestions.length;
+
+            loadQuestion();
+        }
+
+        // 問題のロード
+        function loadQuestion() {
+            hasAnswered = false;
+            
+            document.getElementById("feedback-area").classList.add("hidden");
+            document.getElementById("next-btn").classList.add("hidden");
+            
+            const currentQ = currentQuestions[questionIndex];
+            document.getElementById("current-question-index").textContent = questionIndex + 1;
+            
+            const progressPercent = ((questionIndex + 1) / currentQuestions.length) * 100;
+            document.getElementById("progress-bar").style.width = `${progressPercent}%`;
+
+            if (settingsMode === 'input') {
+                // 【出来事 ➔ 年号直接入力モード】
+                document.getElementById("input-mode-area").classList.remove("hidden");
+                document.getElementById("choice-mode-area").classList.add("hidden");
+
+                document.getElementById("question-label").textContent = "この出来事が起こった年（西暦）は？";
+                document.getElementById("question-text").textContent = `「${currentQ.event}」`;
+                
+                currentInput = "";
+                updateDisplayDigits();
+                document.getElementById("submit-btn").disabled = true;
+
+                // キーパッドのボタンをすべて復元
+                const keys = document.querySelectorAll(".key-btn");
+                keys.forEach(k => k.disabled = false);
+
+            } else {
+                // 【年号 ➔ 出来事選択(4択)モード】
+                document.getElementById("input-mode-area").classList.add("hidden");
+                document.getElementById("choice-mode-area").classList.remove("hidden");
+
+                document.getElementById("question-label").textContent = "この年に起こった（開始された）出来事はどれ？";
+                document.getElementById("question-text").innerHTML = `<span class="text-3xl font-bold font-mono text-amber-800">${currentQ.year}</span> 年`;
+
+                const dbIndex = activeDatabase.findIndex(item => item.id === currentQ.id);
+
+                // ==========================================
+                // ★ 賢い「類義テーマ＋近接年代」ダミー選出ロジック ★
+                // ==========================================
+                const candidates = activeDatabase
+                    .map((item, idx) => {
+                        if (item.id === currentQ.id) return null;
+                        
+                        let tagScore = 0;
+                        if (item.tags && currentQ.tags) {
+                            item.tags.forEach(t => {
+                                if (currentQ.tags.includes(t)) tagScore += 10;
+                            });
+                        }
+                        
+                        const distance = Math.abs(idx - dbIndex);
+                        const distanceScore = 1 / (distance + 1);
+                        
+                        const totalScore = tagScore + distanceScore;
+                        return { item, score: totalScore };
+                    })
+                    .filter(c => c !== null);
+
+                candidates.sort((a, b) => b.score - a.score);
+                const dummyChoices = candidates.slice(0, 3).map(c => c.item);
+
+                const choices = [currentQ, ...dummyChoices];
+                const shuffledChoices = shuffle(choices);
+
+                // 選択肢ボタンにデータをセット
+                for (let i = 0; i < 4; i++) {
+                    const btn = document.getElementById(`choice-${i}`);
+                    const txt = document.getElementById(`choice-text-${i}`);
+                    
+                    txt.textContent = `${i + 1}. ${shuffledChoices[i].event}`;
+                    btn.className = "choice-btn w-full p-3.5 text-left border-2 border-stone-200 hover:border-amber-700 hover:bg-amber-50 rounded-xl font-medium text-stone-700 transition-all duration-150 flex items-center justify-between group cursor-pointer";
+                    btn.disabled = false;
+                    
+                    btn.dataset.itemId = shuffledChoices[i].id;
+                }
+            }
+        }
+
+        // ================= モードA: 直接入力の処理 =================
+        function pressKey(key) {
+            if (hasAnswered) return;
+
+            if (key === "Backspace") {
+                currentInput = currentInput.slice(0, -1);
+            } else if (currentInput.length < 4) {
+                currentInput += key;
+            }
+
+            updateDisplayDigits();
+
+            const submitBtn = document.getElementById("submit-btn");
+            if (currentInput.length === 4) {
+                submitBtn.disabled = false;
+                submitBtn.classList.add("bg-amber-800");
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.classList.remove("bg-amber-800");
+            }
+        }
+
+        function updateDisplayDigits() {
+            for (let i = 0; i < 4; i++) {
+                const box = document.getElementById(`digit-${i}`);
+                if (i < currentInput.length) {
+                    box.textContent = currentInput[i];
+                    box.classList.remove("border-stone-300", "bg-stone-50");
+                    box.classList.add("border-amber-600", "bg-amber-50/50");
+                } else {
+                    box.textContent = "";
+                    box.classList.remove("border-amber-600", "bg-amber-50/50");
+                    box.classList.add("border-stone-300", "bg-stone-50");
+                }
+                box.classList.remove("border-green-500", "bg-green-50", "border-red-400", "bg-red-50", "text-green-700", "text-red-700");
+            }
+        }
+
+        // 入力モードでの回答の判定
+        function submitAnswer() {
+            if (currentInput.length !== 4 || hasAnswered) return;
+            hasAnswered = true;
+
+            const currentQ = currentQuestions[questionIndex];
+            const playerAnswer = parseInt(currentInput);
+            const actualYear = currentQ.year;
+            const isCorrect = (playerAnswer === actualYear);
+
+            const keys = document.querySelectorAll(".key-btn");
+            keys.forEach(k => k.disabled = true);
+
+            for (let i = 0; i < 4; i++) {
+                const box = document.getElementById(`digit-${i}`);
+                box.classList.remove("border-amber-600", "bg-amber-50/50");
+                if (isCorrect) {
+                    box.classList.add("border-green-500", "bg-green-50", "text-green-700");
+                } else {
+                    box.classList.add("border-red-400", "bg-red-50", "text-red-700");
+                }
+            }
+
+            // スタッツの保存
+            saveStats(currentQ.id, isCorrect);
+
+            showFeedback(isCorrect, playerAnswer, actualYear, currentQ.event);
+        }
+
+        // ================= モードB: 選択肢モードの処理 =================
+        function selectChoice(choiceIdx) {
+            if (hasAnswered) return;
+            hasAnswered = true;
+
+            const currentQ = currentQuestions[questionIndex];
+            const selectedBtn = document.getElementById(`choice-${choiceIdx}`);
+            const isCorrect = (selectedBtn.dataset.itemId === currentQ.id);
+
+            for (let i = 0; i < 4; i++) {
+                const btn = document.getElementById(`choice-${i}`);
+                btn.disabled = true;
+                btn.classList.remove("hover:border-amber-700", "hover:bg-amber-50", "cursor-pointer");
+                btn.classList.add("cursor-default");
+
+                if (btn.dataset.itemId === currentQ.id) {
+                    btn.classList.add("border-green-500", "bg-green-50", "text-green-800");
+                }
+            }
+
+            if (!isCorrect) {
+                selectedBtn.classList.add("border-red-400", "bg-red-50", "text-red-800");
+            }
+
+            // スタッツの保存
+            saveStats(currentQ.id, isCorrect);
+
+            const selectedText = document.getElementById(`choice-text-${choiceIdx}`).textContent.replace(/^[1-4]\.\s*/, "");
+            showFeedback(isCorrect, selectedText, currentQ.event, currentQ.year);
+        }
+
+        // ================= 共通処理 =================
+        function showFeedback(isCorrect, playerAnswer, correctAnswer, eventOrYear) {
+            const feedbackArea = document.getElementById("feedback-area");
+            const feedbackIcon = document.getElementById("feedback-icon");
+            const feedbackTitle = document.getElementById("feedback-title");
+            const feedbackTextMain = document.getElementById("feedback-text-main");
+            const feedbackDescription = document.getElementById("feedback-description");
+
+            feedbackArea.classList.remove("hidden");
+            const currentQ = currentQuestions[questionIndex];
+            feedbackDescription.textContent = currentQ.description;
+
+            if (isCorrect) {
+                score++;
+                document.getElementById("current-score").textContent = score;
+
+                feedbackArea.className = "rounded-xl p-4 mb-4 flex flex-col gap-3 bg-green-50 border border-green-200 text-green-900";
+                feedbackIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+                feedbackTitle.textContent = "大正解！";
+
+                if (settingsMode === 'input') {
+                    feedbackTextMain.textContent = `「${eventOrYear}」は、まさに【 ${correctAnswer}年 】です！すばらしい！`;
+                } else {
+                    feedbackTextMain.textContent = `【 ${eventOrYear}年 】に起きたのは、まさに「${correctAnswer}」です！すばらしい！`;
+                }
+            } else {
+                incorrectQuestions.push(currentQ);
+
+                let diffComment = "";
+                if (settingsMode === 'input') {
+                    const difference = Math.abs(playerAnswer - correctAnswer);
+                    if (difference <= 3) {
+                        diffComment = `惜しい！あと ${difference} 年のズレでした。`;
+                    } else if (difference <= 10) {
+                        diffComment = `かなり近い時代のできごとです（ズレ：${difference} 年）。`;
+                    } else {
+                        diffComment = `時代のズレは ${difference} 年です。`;
+                    }
+
+                    incorrectAnswers.push({
+                        question: eventOrYear,
+                        correct: `${correctAnswer}年`,
+                        wrong: `${playerAnswer}年`
+                    });
+
+                    feedbackArea.className = "rounded-xl p-4 mb-4 flex flex-col gap-3 bg-red-50 border border-red-200 text-red-900";
+                    feedbackIcon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+                    feedbackTitle.textContent = `不正解 (正解 is ${correctAnswer}年)`;
+                    feedbackTextMain.textContent = `${diffComment} 正しくは 【 ${correctAnswer}年 】 です。解説を読んで覚え直そう！`;
+                } else {
+                    incorrectAnswers.push({
+                        question: `${eventOrYear}年の出来事`,
+                        correct: correctAnswer,
+                        wrong: playerAnswer
+                    });
+
+                    feedbackArea.className = "rounded-xl p-4 mb-4 flex flex-col gap-3 bg-red-50 border border-red-200 text-red-900";
+                    feedbackIcon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+                    feedbackTitle.textContent = "不正解です";
+                    feedbackTextMain.textContent = `正解は「${correctAnswer}」でした。解説をチェックしてみよう！`;
+                }
+            }
+
+            document.getElementById("next-btn").classList.remove("hidden");
+            document.getElementById("next-btn").classList.add("flex");
+        }
+
+        function nextQuestion() {
+            questionIndex++;
+            if (questionIndex < currentQuestions.length) {
+                loadQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            document.getElementById("quiz-screen").classList.add("hidden");
+            document.getElementById("result-screen").classList.remove("hidden");
+
+            document.getElementById("result-score").textContent = score;
+            document.getElementById("result-total").textContent = currentQuestions.length;
+
+            const fieldLabel = settingsField === 'japan' ? '日本史' : '世界史';
+            const modeLabel = settingsMode === 'input' ? '出来事 ➔ 年号直接入力' : '年号 ➔ 出来事選択(4択)';
+            
+            let reviewModeText = "";
+            if (isReviewMode) reviewModeText = "【苦手復習】";
+            else if (isWeakOnlyMode) reviewModeText = "【苦手克服】";
+
+            document.getElementById("result-mode-label").textContent = `${reviewModeText}分野: ${fieldLabel} | モード: ${modeLabel}`;
+
+            const scoreRate = score / currentQuestions.length;
+            let evaluation = "";
+            if (scoreRate === 1) {
+                evaluation = (isReviewMode || isWeakOnlyMode) ? "🎉 素晴らしい！弱点を完全に克服しました！" : "👑 歴史グランドマスター！完璧な暗記です！";
+            } else if (scoreRate >= 0.8) {
+                evaluation = "🌟 素晴らしい！本物の実力が身についています！";
+            } else if (scoreRate >= 0.5) {
+                evaluation = "🎯 合格点です！あやふやな歴史をタイムラインで復習してみましょう！";
+            } else {
+                evaluation = "✍️ 伸び代たっぷり！間違えた問題は年表からじっくり復習できますよ。";
+            }
+            document.getElementById("result-evaluation").textContent = evaluation;
+
+            const reviewArea = document.getElementById("incorrect-review-area");
+            const listContainer = document.getElementById("incorrect-list");
+            listContainer.innerHTML = "";
+
+            const btnReviewOnly = document.getElementById("btn-review-only");
+
+            if (incorrectAnswers.length > 0) {
+                reviewArea.classList.remove("hidden");
+                btnReviewOnly.classList.remove("hidden");
+                btnReviewOnly.innerHTML = `<i class="fa-solid fa-triangle-exclamation animate-bounce"></i> 間違えた問題のみ (${incorrectQuestions.length}問) で再挑戦！`;
+
+                incorrectAnswers.forEach(item => {
+                    const div = document.createElement("div");
+                    div.className = "p-3 bg-stone-50 border border-stone-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs md:text-sm";
+                    div.innerHTML = `
+                        <div class="font-medium text-stone-700">「${item.question}」</div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-stone-400 font-mono">（入力：${item.wrong}）</span>
+                            <i class="fa-solid fa-arrow-right text-stone-400"></i>
+                            <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">${item.correct}</span>
+                        </div>
+                    `;
+                    listContainer.appendChild(div);
+                });
+            } else {
+                reviewArea.classList.add("hidden");
+                btnReviewOnly.classList.add("hidden");
+            }
+        }
+
+        // ================= 年表（スタッツ年表）描画機能 =================
+        function openTimeline() {
+            renderTimeline();
+            document.getElementById("timeline-screen").classList.remove("hidden");
+        }
+
+        function closeTimeline() {
+            document.getElementById("timeline-screen").classList.add("hidden");
+        }
+
+        // 歴史年表に格納する個別カードのHTML生成
+        function createTimelineCard(item, stats, type) {
+            const itemStats = stats[item.id] || { correct: 0, wrong: 0 };
+            let borderClass = "border-stone-200 bg-white";
+            
+            if (itemStats.wrong > 0 && itemStats.wrong >= itemStats.correct) {
+                borderClass = "border-red-300 bg-red-50/30";
+            } else if (itemStats.correct > 0) {
+                borderClass = "border-green-300 bg-green-50/10";
+            }
+
+            const card = document.createElement("div");
+            card.className = `w-full ${borderClass} border rounded-xl p-3 flex flex-col justify-between shadow-sm transition-all hover:scale-[1.03] duration-150 h-32`;
+            card.innerHTML = `
+                <div class="flex flex-col justify-between h-full">
+                    <div class="text-[9px] font-bold ${type === 'japan' ? 'text-amber-800' : 'text-stone-600'} uppercase tracking-wider">
+                        ${type === 'japan' ? '● 日本' : '🗺 世界'}
+                    </div>
+                    <div class="text-xs text-stone-700 font-medium leading-snug break-words h-14 overflow-hidden line-clamp-3 my-1" title="${item.event}">
+                        ${item.event}
+                    </div>
+                    <div class="pt-1 border-t border-stone-100 flex justify-between text-[9px] font-bold">
+                        <span class="text-green-600"><i class="fa-solid fa-square-check"></i> ${itemStats.correct}</span>
+                        <span class="text-red-500"><i class="fa-solid fa-square-xmark"></i> ${itemStats.wrong}</span>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        function renderTimeline() {
+            const stats = getStats();
+            const container = document.getElementById("timeline-cols-container");
+            container.innerHTML = "";
+
+            // 日本史と世界史のすべての年号を取得し、ソートして重複を排除
+            const allYears = Array.from(new Set([
+                ...japanDatabase.map(d => d.year),
+                ...worldDatabase.map(d => d.year)
+            ])).sort((a, b) => a - b);
+
+            // 各西暦年ごとに縦1列(日本・年・世界)を構築して横に並べていく
+            allYears.forEach(y => {
+                const jpItems = japanDatabase.filter(d => d.year === y);
+                const wdItems = worldDatabase.filter(d => d.year === y);
+
+                // 各西暦用の縦カラム
+                const col = document.createElement("div");
+                col.className = "flex flex-col items-center w-48 flex-shrink-0 gap-2";
+
+                // 1. 上段：日本史エリア
+                const jpArea = document.createElement("div");
+                jpArea.className = "w-full flex flex-col gap-2 flex-grow justify-end min-h-[128px]";
+                if (jpItems.length > 0) {
+                    jpItems.forEach(item => {
+                        jpArea.appendChild(createTimelineCard(item, stats, "japan"));
+                    });
+                } else {
+                    // 出来事がない年は、枠線の高さを綺麗に保つためにダミープレースホルダーを作成
+                    const placeholder = document.createElement("div");
+                    placeholder.className = "w-full h-32 border border-dashed border-stone-200 bg-stone-50/20 rounded-xl flex items-center justify-center text-[10px] text-stone-300 font-sans";
+                    placeholder.textContent = "-";
+                    jpArea.appendChild(placeholder);
+                }
+
+                // 2. 中段：中央年号バッジ
+                const yearBadge = document.createElement("div");
+                yearBadge.className = "w-full py-1 bg-amber-900 text-amber-50 rounded-lg text-xs font-bold text-center font-mono shadow-sm border border-amber-800/80 my-1 flex-shrink-0 sticky z-10";
+                yearBadge.textContent = `${y} 年`;
+
+                // 3. 下段：世界史エリア
+                const wdArea = document.createElement("div");
+                wdArea.className = "w-full flex flex-col gap-2 flex-grow justify-start min-h-[128px]";
+                if (wdItems.length > 0) {
+                    wdItems.forEach(item => {
+                        wdArea.appendChild(createTimelineCard(item, stats, "world"));
+                    });
+                } else {
+                    const placeholder = document.createElement("div");
+                    placeholder.className = "w-full h-32 border border-dashed border-stone-200 bg-stone-50/20 rounded-xl flex items-center justify-center text-[10px] text-stone-300 font-sans";
+                    placeholder.textContent = "-";
+                    wdArea.appendChild(placeholder);
+                }
+
+                col.appendChild(jpArea);
+                col.appendChild(yearBadge);
+                col.appendChild(wdArea);
+                container.appendChild(col);
+            });
+        }
+
+        // リスタート
+        function restartGame() {
+            startGame();
+        }
+
+        // トップ
+        function goToStart() {
+            updateWeakBadge();
+            document.getElementById("start-screen").classList.remove("hidden");
+            document.getElementById("quiz-screen").classList.add("hidden");
+            document.getElementById("result-screen").classList.add("hidden");
+        }
+    </script>
+</body>
+</html>
