@@ -1333,16 +1333,14 @@
         }
 
         // 年表カードをタップしたときにポップアップ詳細を出す関数
-        function showTimelineDetail(item, type) {
+        // items: 同じ年・同じ分野の出来事の配列（1件でも複数件でもOK）
+        function showTimelineDetail(items, type) {
             const modal = document.getElementById("timeline-detail-modal");
             const badge = document.getElementById("td-badge");
-            const title = document.getElementById("td-title");
             const year = document.getElementById("td-year");
-            const desc = document.getElementById("td-description");
+            const entriesContainer = document.getElementById("td-entries");
 
-            title.textContent = item.event;
-            year.textContent = `${item.year}年`;
-            desc.textContent = item.description;
+            year.textContent = `${items[0].year}年`;
 
             if (type === 'japan') {
                 badge.textContent = "日本史";
@@ -1352,6 +1350,13 @@
                 badge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-stone-100 text-stone-800";
             }
 
+            entriesContainer.innerHTML = items.map(item => `
+                <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
+                    <h4 class="text-sm font-bold text-stone-900 japanese-font leading-snug mb-1.5">${item.event}</h4>
+                    <p class="text-xs md:text-sm text-stone-600 leading-relaxed">${item.description}</p>
+                </div>
+            `).join("");
+
             modal.classList.remove("hidden");
         }
 
@@ -1359,14 +1364,21 @@
             document.getElementById("timeline-detail-modal").classList.add("hidden");
         }
 
-        // 歴史年表に格納する個別カードのHTML生成
-        function createTimelineCard(item, stats, type) {
-            const itemStats = stats[item.id] || { correct: 0, wrong: 0 };
+        // 歴史年表に格納するカードのHTML生成
+        // items: 同じ年・同じ分野の出来事の配列。複数あっても必ず1枚のカードにまとめる（＝縦の並びは日本史・世界史の2段のみになる）
+        function createTimelineCard(items, stats, type) {
+            let correctSum = 0;
+            let wrongSum = 0;
+            items.forEach(item => {
+                const s = stats[item.id] || { correct: 0, wrong: 0 };
+                correctSum += s.correct;
+                wrongSum += s.wrong;
+            });
+
             let borderClass = "border-stone-200 bg-white";
-            
-            if (itemStats.wrong > 0 && itemStats.wrong >= itemStats.correct) {
+            if (wrongSum > 0 && wrongSum >= correctSum) {
                 borderClass = "border-red-300 bg-red-50/30";
-            } else if (itemStats.correct > 0) {
+            } else if (correctSum > 0) {
                 borderClass = "border-green-300 bg-green-50/10";
             }
 
@@ -1375,20 +1387,25 @@
             
             card.onclick = (e) => {
                 e.stopPropagation();
-                showTimelineDetail(item, type);
+                showTimelineDetail(items, type);
             };
+
+            const countBadge = items.length > 1
+                ? `<span class="ml-1 text-[8px] bg-stone-700/80 text-white px-1.5 py-[1px] rounded-full">${items.length}件</span>`
+                : "";
+            const eventLabel = items.map(it => it.event).join(" ／ ");
 
             card.innerHTML = `
                 <div class="flex flex-col justify-between h-full">
-                    <div class="text-[9px] font-bold ${type === 'japan' ? 'text-amber-800' : 'text-stone-600'} uppercase tracking-wider">
-                        ${type === 'japan' ? '● 日本' : '🗺 世界'}
+                    <div class="text-[9px] font-bold ${type === 'japan' ? 'text-amber-800' : 'text-stone-600'} uppercase tracking-wider flex items-center">
+                        ${type === 'japan' ? '● 日本' : '🗺 世界'}${countBadge}
                     </div>
-                    <div class="text-xs text-stone-700 font-medium leading-snug break-words h-14 overflow-hidden line-clamp-3 my-1" title="${item.event}">
-                        ${item.event}
+                    <div class="text-xs text-stone-700 font-medium leading-snug break-words h-14 overflow-hidden line-clamp-3 my-1" title="${eventLabel}">
+                        ${eventLabel}
                     </div>
                     <div class="pt-1 border-t border-stone-100 flex justify-between text-[9px] font-bold">
-                        <span class="text-green-600"><i class="fa-solid fa-square-check"></i> ${itemStats.correct}</span>
-                        <span class="text-red-500"><i class="fa-solid fa-square-xmark"></i> ${itemStats.wrong}</span>
+                        <span class="text-green-600"><i class="fa-solid fa-square-check"></i> ${correctSum}</span>
+                        <span class="text-red-500"><i class="fa-solid fa-square-xmark"></i> ${wrongSum}</span>
                     </div>
                 </div>
             `;
@@ -1413,13 +1430,11 @@
                 const col = document.createElement("div");
                 col.className = "flex flex-col items-center w-48 flex-shrink-0 gap-2";
 
-                // 1. 上段：日本史エリア
+                // 1. 上段：日本史エリア（同じ年の出来事は必ず1枚のカードにまとめる＝縦に増えない）
                 const jpArea = document.createElement("div");
-                jpArea.className = "w-full flex flex-col gap-2 flex-grow justify-end min-h-[128px]";
+                jpArea.className = "w-full flex flex-col flex-grow justify-end min-h-[128px]";
                 if (jpItems.length > 0) {
-                    jpItems.forEach(item => {
-                        jpArea.appendChild(createTimelineCard(item, stats, "japan"));
-                    });
+                    jpArea.appendChild(createTimelineCard(jpItems, stats, "japan"));
                 } else {
                     const placeholder = document.createElement("div");
                     placeholder.className = "w-full h-32 border border-dashed border-stone-200 bg-stone-50/20 rounded-xl flex items-center justify-center text-[10px] text-stone-300 font-sans";
@@ -1432,13 +1447,11 @@
                 yearBadge.className = "w-full py-1 bg-amber-900 text-amber-50 rounded-lg text-xs font-bold text-center font-mono shadow-sm border border-amber-800/80 my-1 flex-shrink-0 sticky z-10";
                 yearBadge.textContent = `${y} 年`;
 
-                // 3. 下段：世界史エリア
+                // 3. 下段：世界史エリア（同じ年の出来事は必ず1枚のカードにまとめる＝縦に増えない）
                 const wdArea = document.createElement("div");
-                wdArea.className = "w-full flex flex-col gap-2 flex-grow justify-start min-h-[128px]";
+                wdArea.className = "w-full flex flex-col flex-grow justify-start min-h-[128px]";
                 if (wdItems.length > 0) {
-                    wdItems.forEach(item => {
-                        wdArea.appendChild(createTimelineCard(item, stats, "world"));
-                    });
+                    wdArea.appendChild(createTimelineCard(wdItems, stats, "world"));
                 } else {
                     const placeholder = document.createElement("div");
                     placeholder.className = "w-full h-32 border border-dashed border-stone-200 bg-stone-50/20 rounded-xl flex items-center justify-center text-[10px] text-stone-300 font-sans";
