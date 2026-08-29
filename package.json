@@ -1,0 +1,14 @@
+{
+  "name": "history-quiz-of-edo",
+  "version": "1.0.0",
+  "description": "A history quiz app imported from GitHub",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "echo 'No build step required for static site'"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}

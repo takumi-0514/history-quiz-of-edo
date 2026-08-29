@@ -372,12 +372,12 @@
         }
 
         // ================= 同時期できごとペア検出用ヘルパー =================
-        function generateAllSameEraPairs() {
+        function generateAllSameEraPairs(japanDb = japanDatabase, worldDb = worldDatabase) {
             const pairs = [];
             
             // 1. まずは「完全一致（同じ年）」のペアを最優先で検索
-            japanDatabase.forEach(jp => {
-                const exactWorldMatch = worldDatabase.find(wd => wd.year === jp.year);
+            japanDb.forEach(jp => {
+                const exactWorldMatch = worldDb.find(wd => wd.year === jp.year);
                 if (exactWorldMatch) {
                     pairs.push({
                         jp: jp,
@@ -389,10 +389,10 @@
             });
 
             // 2. 差分が少ない（±3年以内）ペアを緩やかにカバーして問題プールを十分に確保
-            japanDatabase.forEach(jp => {
+            japanDb.forEach(jp => {
                 if (pairs.some(p => p.jp.id === jp.id)) return;
 
-                const nearWorldMatch = worldDatabase.find(wd => Math.abs(wd.year - jp.year) <= 3);
+                const nearWorldMatch = worldDb.find(wd => Math.abs(wd.year - jp.year) <= 3);
                 if (nearWorldMatch) {
                     pairs.push({
                         jp: jp,
@@ -405,8 +405,8 @@
             return pairs;
         }
 
-        function generateSameEraQuestions(count) {
-            const allPairs = generateAllSameEraPairs();
+        function generateSameEraQuestions(count, japanDb = japanDatabase, worldDb = worldDatabase) {
+            const allPairs = generateAllSameEraPairs(japanDb, worldDb);
             const shuffledPairs = shuffle(allPairs);
             return shuffledPairs.slice(0, count === 'all' ? shuffledPairs.length : count);
         }
@@ -566,9 +566,30 @@
             isReviewMode = false;
             const stats = getStats();
             
+            // 年代フィルターの取得
+            const startYearInput = document.getElementById("filter-start-year").value;
+            const endYearInput = document.getElementById("filter-end-year").value;
+            const startYear = startYearInput ? parseInt(startYearInput, 10) : -9999;
+            const endYear = endYearInput ? parseInt(endYearInput, 10) : 9999;
+
+            // フィルター適用後のデータベース
+            const filteredDatabase = activeDatabase.filter(item => item.year >= startYear && item.year <= endYear);
+            const filteredJapanDatabase = japanDatabase.filter(item => item.year >= startYear && item.year <= endYear);
+            const filteredWorldDatabase = worldDatabase.filter(item => item.year >= startYear && item.year <= endYear);
+
+            if (filteredDatabase.length === 0) {
+                showCustomAlert("お知らせ", "指定された年代の問題が見つかりません。年代の指定を変えてみてください。", "fa-circle-info", "text-amber-700");
+                return;
+            }
+
+            if (settingsMode === 'same_era' && (filteredJapanDatabase.length === 0 || filteredWorldDatabase.length === 0)) {
+                showCustomAlert("お知らせ", "同時期クイズには日本史・世界史両方の問題が必要です。年代の指定を変えてみてください。", "fa-circle-info", "text-amber-700");
+                return;
+            }
+            
             if (isWeakOnlyMode) {
                 // 【苦手克服モードの動作：新ルール適用】
-                const weakItems = getWeakItemsForField(activeDatabase, stats);
+                const weakItems = getWeakItemsForField(filteredDatabase, stats);
                 
                 if (weakItems.length === 0) {
                     showCustomAlert(
@@ -585,7 +606,7 @@
                     // 苦手克服 + 並べ替え：各苦手項目をベースに近接セットを構築
                     const questionsList = [];
                     weakItems.forEach(item => {
-                        const set = get4CloseDistinctYearEvents(activeDatabase, item);
+                        const set = get4CloseDistinctYearEvents(filteredDatabase, item);
                         if (set.length === 4) {
                             questionsList.push(set);
                         }
@@ -593,7 +614,7 @@
                     currentQuestions = shuffle(questionsList);
                 } else if (settingsMode === 'same_era') {
                     // 苦手克服 + 同時期：苦手項目を含むペアを優先抽出
-                    const allPairs = generateAllSameEraPairs();
+                    const allPairs = generateAllSameEraPairs(filteredJapanDatabase, filteredWorldDatabase);
                     const weakItemIds = new Set(weakItems.map(item => item.id));
                     const weakPairs = allPairs.filter(pair => weakItemIds.has(pair.jp.id) || weakItemIds.has(pair.wd.id));
                     
@@ -615,13 +636,13 @@
                 
                 if (settingsMode === 'same_era') {
                     // 同時期できごとクイズ（特別生成）
-                    currentQuestions = generateSameEraQuestions(count);
+                    currentQuestions = generateSameEraQuestions(count, filteredJapanDatabase, filteredWorldDatabase);
                 } else if (settingsMode === 'sort') {
                     // 並べ替えモード：より近い年代同士の4選セットを作る
                     const questionsList = [];
                     const loops = (count === 'all') ? 10 : count; // 全問の場合はひとまず10問用意
                     for (let i = 0; i < loops; i++) {
-                        const items = get4CloseDistinctYearEvents(activeDatabase);
+                        const items = get4CloseDistinctYearEvents(filteredDatabase);
                         if (items.length === 4) {
                             questionsList.push(items);
                         }
@@ -629,11 +650,11 @@
                     currentQuestions = questionsList;
                 } else if (settingsField === 'mixed') {
                     // 通常の混合モード
-                    const shuffledJapan = shuffle(japanDatabase);
-                    const shuffledWorld = shuffle(worldDatabase);
+                    const shuffledJapan = shuffle(filteredJapanDatabase);
+                    const shuffledWorld = shuffle(filteredWorldDatabase);
                     
                     if (count === 'all') {
-                        currentQuestions = shuffle([...japanDatabase, ...worldDatabase]);
+                        currentQuestions = shuffle([...filteredJapanDatabase, ...filteredWorldDatabase]);
                     } else {
                         const halfCount = count / 2;
                         const selectedJapan = shuffledJapan.slice(0, halfCount);
@@ -642,9 +663,9 @@
                     }
                 } else {
                     // 通常の単一歴史分野モード
-                    const shuffledDb = shuffle(activeDatabase);
+                    const shuffledDb = shuffle(filteredDatabase);
                     if (count === 'all') {
-                        count = activeDatabase.length;
+                        count = filteredDatabase.length;
                     }
                     currentQuestions = shuffledDb.slice(0, count);
                 }
@@ -1339,6 +1360,8 @@
             const badge = document.getElementById("td-badge");
             const year = document.getElementById("td-year");
             const entriesContainer = document.getElementById("td-entries");
+            
+            const stats = getStats();
 
             year.textContent = `${items[0].year}年`;
 
@@ -1350,12 +1373,18 @@
                 badge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-stone-100 text-stone-800";
             }
 
-            entriesContainer.innerHTML = items.map(item => `
-                <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
-                    <h4 class="text-sm font-bold text-stone-900 japanese-font leading-snug mb-1.5">${item.event}</h4>
+            entriesContainer.innerHTML = items.map(item => {
+                const s = stats[item.id] || { correct: 0, wrong: 0 };
+                return `
+                <div class="bg-stone-50 border border-stone-200 rounded-xl p-4 relative">
+                    <div class="absolute top-3 right-3 flex gap-2 text-[10px] font-bold">
+                        <span class="text-green-600 bg-green-50 px-1.5 py-0.5 rounded"><i class="fa-solid fa-square-check"></i> ${s.correct}</span>
+                        <span class="text-red-500 bg-red-50 px-1.5 py-0.5 rounded"><i class="fa-solid fa-square-xmark"></i> ${s.wrong}</span>
+                    </div>
+                    <h4 class="text-sm font-bold text-stone-900 japanese-font leading-snug mb-1.5 pr-16">${item.event}</h4>
                     <p class="text-xs md:text-sm text-stone-600 leading-relaxed">${item.description}</p>
                 </div>
-            `).join("");
+            `}).join("");
 
             modal.classList.remove("hidden");
         }
