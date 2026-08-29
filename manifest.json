@@ -1,0 +1,16 @@
+{
+  "name": "歴史年号暗記クイズ (日本史＆世界史)",
+  "short_name": "年号道場",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f3ef",
+  "theme_color": "#78350f",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
