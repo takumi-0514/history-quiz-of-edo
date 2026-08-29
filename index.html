@@ -402,14 +402,10 @@
             </button>
             <div class="mb-4">
                 <span id="td-badge" class="text-[10px] font-bold px-2 py-0.5 rounded">日本史</span>
-                <h4 id="td-title" class="text-lg font-bold text-stone-900 mt-2 japanese-font leading-snug"></h4>
-                <p id="td-year" class="text-xs text-amber-800 font-mono font-bold mt-1"></p>
+                <p id="td-year" class="text-xs text-amber-800 font-mono font-bold mt-2"></p>
             </div>
-            <div class="bg-stone-50 border border-stone-200 rounded-xl p-4">
-                <h5 class="font-bold text-xs text-stone-700 mb-1.5 flex items-center gap-1.5">
-                    <i class="fa-solid fa-book-open"></i> 歴史のミニ解説
-                </h5>
-                <p id="td-description" class="text-xs md:text-sm text-stone-600 leading-relaxed"></p>
+            <div id="td-entries" class="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
+                <!-- JSで動的に生成（同じ年の出来事が複数ある場合はここに並べて表示） -->
             </div>
             <div class="mt-5 flex justify-end">
                 <button onclick="closeTimelineDetail()" class="bg-amber-900 hover:bg-amber-950 text-white font-bold py-2 px-5 rounded-lg transition-colors text-xs shadow-sm">
