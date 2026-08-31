@@ -75,6 +75,10 @@
             }
             localStorage.setItem(STATS_KEY, JSON.stringify(stats));
             updateWeakBadge();
+            
+            if (window.syncHistoryStatsToCloud) {
+                window.syncHistoryStatsToCloud(stats);
+            }
         }
 
         // 記録を初期化する
@@ -426,6 +430,10 @@
             renderTimeline();
             closeResetConfirmModal();
             showCustomAlert("完了", "すべての記録をクリアしました！", "fa-circle-check", "text-green-600");
+            
+            if (window.syncHistoryStatsToCloud) {
+                window.syncHistoryStatsToCloud({});
+            }
         }
 
         // ================= 同時期できごとペア検出用ヘルパー =================
@@ -1887,7 +1895,15 @@ window.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('sync-room-id').value = status.roomId;
                 document.getElementById('sync-password').value = status.password;
                 updateTrackerBadgeUI(true);
+                if (window.setupRealtimeSync) {
+                    window.setupRealtimeSync();
+                }
             }
         }
     }, 500); // syncスクリプトのロード待ち
 });
+
+window.onHistoryStatsUpdated = function() {
+    updateWeakBadge();
+    updateAvailableQuestionCount();
+};

@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const netlifyFirebaseConfig = {
   apiKey: "AIzaSyAY6j40lEWfskNXqCpDWKMiOuVsF1rAAH4",
@@ -164,6 +164,14 @@ export async function connectStudyTracker(roomId, password) {
     // 成功
     localStorage.setItem('history_st_sync_room', roomId);
     localStorage.setItem('history_st_sync_password', password);
+    setupRealtimeSync();
+    
+    // Upload current local stats immediately on connect
+    const localStatsStr = localStorage.getItem('history_quiz_stats_v3');
+    if (localStatsStr) {
+        syncHistoryStatsToCloud(JSON.parse(localStatsStr));
+    }
+    
     alert("Study Trackerと連携しました！");
     return { success: true, subjects: decryptedData.subjects || [] };
   } else {
@@ -198,6 +206,10 @@ export function disconnectStudyTracker() {
   localStorage.removeItem('history_st_sync_room');
   localStorage.removeItem('history_st_sync_password');
   localStorage.removeItem('history_st_sync_subject');
+  if (unsubscribeSnapshot) {
+      unsubscribeSnapshot();
+      unsubscribeSnapshot = null;
+  }
   alert("Study Trackerとの連携を解除しました。");
 }
 
@@ -295,3 +307,123 @@ window.connectStudyTracker = connectStudyTracker;
 window.disconnectStudyTracker = disconnectStudyTracker;
 window.pushStudyTrackerRecord = pushStudyTrackerRecord;
 window.fetchStudyTrackerSubjects = fetchStudyTrackerSubjects;
+
+let unsubscribeSnapshot = null;
+
+export async function setupRealtimeSync() {
+    const statusInfo = await checkSyncStatus();
+    if (!statusInfo.isConnected) return;
+    
+    const database = await initFirebase();
+    if (!database) return;
+    
+    const docRef = doc(database, 'rooms', statusInfo.roomId);
+    
+    if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+    }
+    
+    unsubscribeSnapshot = onSnapshot(docRef, async (docSnap) => {
+        if (!docSnap.exists()) return;
+        
+        const remoteData = docSnap.data();
+        const decryptedData = await decryptData(remoteData, statusInfo.password);
+        if (!decryptedData || !decryptedData.historyStats) return;
+        
+        const remoteStats = decryptedData.historyStats;
+        const localStatsStr = localStorage.getItem('history_quiz_stats_v3');
+        let localStats = localStatsStr ? JSON.parse(localStatsStr) : {};
+        
+        let hasChanges = false;
+        
+        if (Object.keys(remoteStats).length === 0 && Object.keys(localStats).length > 0) {
+            localStats = {};
+            hasChanges = true;
+        } else {
+            for (const key in remoteStats) {
+                if (!localStats[key]) {
+                    localStats[key] = remoteStats[key];
+                    hasChanges = true;
+                } else {
+                    const maxCorrect = Math.max(localStats[key].correct || 0, remoteStats[key].correct || 0);
+                    const maxWrong = Math.max(localStats[key].wrong || 0, remoteStats[key].wrong || 0);
+                    if (localStats[key].correct !== maxCorrect || localStats[key].wrong !== maxWrong) {
+                        localStats[key].correct = maxCorrect;
+                        localStats[key].wrong = maxWrong;
+                        hasChanges = true;
+                    }
+                }
+            }
+        }
+        
+        if (hasChanges) {
+            localStorage.setItem('history_quiz_stats_v3', JSON.stringify(localStats));
+            if (window.onHistoryStatsUpdated) {
+                window.onHistoryStatsUpdated();
+            }
+        }
+    });
+}
+
+let syncTimeout = null;
+let isSyncing = false;
+
+export function syncHistoryStatsToCloud(localStats) {
+    if (syncTimeout) clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(async () => {
+        if (isSyncing) return;
+        isSyncing = true;
+        try {
+            const statusInfo = await checkSyncStatus();
+            if (!statusInfo.isConnected) return;
+            const database = await initFirebase();
+            if (!database) return;
+            
+            const docRef = doc(database, 'rooms', statusInfo.roomId);
+            const docSnap = await getDoc(docRef);
+            if (!docSnap.exists()) return;
+            
+            const remoteData = docSnap.data();
+            const decryptedData = await decryptData(remoteData, statusInfo.password);
+            if (!decryptedData) return;
+            
+            let remoteStats = decryptedData.historyStats || {};
+            let hasChanges = false;
+            
+            if (Object.keys(localStats).length === 0 && Object.keys(remoteStats).length > 0) {
+                decryptedData.historyStats = {};
+                const encrypted = await encryptData(decryptedData, statusInfo.password);
+                await setDoc(docRef, encrypted);
+                return;
+            }
+            
+            for (const key in localStats) {
+                if (!remoteStats[key]) {
+                    remoteStats[key] = localStats[key];
+                    hasChanges = true;
+                } else {
+                    const maxCorrect = Math.max(remoteStats[key].correct || 0, localStats[key].correct || 0);
+                    const maxWrong = Math.max(remoteStats[key].wrong || 0, localStats[key].wrong || 0);
+                    if (remoteStats[key].correct !== maxCorrect || remoteStats[key].wrong !== maxWrong) {
+                        remoteStats[key].correct = maxCorrect;
+                        remoteStats[key].wrong = maxWrong;
+                        hasChanges = true;
+                    }
+                }
+            }
+            
+            if (hasChanges) {
+                decryptedData.historyStats = remoteStats;
+                const encrypted = await encryptData(decryptedData, statusInfo.password);
+                await setDoc(docRef, encrypted);
+            }
+        } catch (e) {
+            console.error("Sync error:", e);
+        } finally {
+            isSyncing = false;
+        }
+    }, 1500); // 1.5 seconds debounce
+}
+
+window.setupRealtimeSync = setupRealtimeSync;
+window.syncHistoryStatsToCloud = syncHistoryStatsToCloud;
