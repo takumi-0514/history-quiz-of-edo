@@ -13,6 +13,13 @@
         let incorrectAnswers = [];      // 復習リスト表示用のデータ
         let incorrectQuestions = [];    // 間違えた問題のオリジナルクイズ配列（復習機能で使用）
         let isReviewMode = false;       // 今が復習モードかどうか
+        
+        // フラッシュカード用の状態変数
+        let flashcardQuestions = [];
+        let fcIndex = 0;
+        let fcRememberedCount = 0;
+        let fcNotRememberedCount = 0;
+        let fcFlipped = false;
 
         let currentInput = "";          // 現在入力されているキー
         let hasAnswered = false;
@@ -30,6 +37,10 @@
             setQuestionCount(10);      // デフォルトは10問
             setTrainingStyle(false);   // 初期状態で通常修行を選択状態にする
             updateWeakBadge();         // 苦手バッジを更新
+
+            // フィルターの入力イベント
+            document.getElementById("filter-start-year").addEventListener('input', updateAvailableQuestionCount);
+            document.getElementById("filter-end-year").addEventListener('input', updateAvailableQuestionCount);
 
             // 物理キーボードのキー入力を監視
             document.addEventListener('keydown', handlePhysicalKeyboard);
@@ -168,24 +179,28 @@
             globalGameType = type;
             const btnQuiz = document.getElementById("btn-gtype-quiz");
             const btnSort = document.getElementById("btn-gtype-sort");
+            
             const quizSelectors = document.getElementById("quiz-mode-selectors");
             const sortSelectors = document.getElementById("sort-mode-selectors");
+            const startBtn = document.getElementById("start-game-btn");
+
+            const inactiveClass = "px-2 sm:px-3 py-1 rounded-lg font-bold transition-all text-amber-200 hover:text-white";
+            const activeClass = "px-2 sm:px-3 py-1 rounded-lg font-bold transition-all bg-amber-900 text-white shadow-sm";
+            btnQuiz.className = inactiveClass;
+            btnSort.className = inactiveClass;
 
             if (type === 'quiz') {
-                btnQuiz.className = "px-3 py-1 rounded-lg text-xs font-bold transition-all bg-amber-900 text-white shadow-sm";
-                btnSort.className = "px-3 py-1 rounded-lg text-xs font-bold transition-all text-amber-200 hover:text-white";
+                btnQuiz.className = activeClass;
                 quizSelectors.classList.remove("hidden");
                 sortSelectors.classList.add("hidden");
                 setQuizMode('input'); // デフォルトは年号入力
-            } else {
-                btnQuiz.className = "px-3 py-1 rounded-lg text-xs font-bold transition-all text-amber-200 hover:text-white";
-                btnSort.className = "px-3 py-1 rounded-lg text-xs font-bold transition-all bg-amber-900 text-white shadow-sm";
+            } else if (type === 'sort_era') {
+                btnSort.className = activeClass;
                 quizSelectors.classList.add("hidden");
                 sortSelectors.classList.remove("hidden");
-                
-                // 初期時は通常の並べ替え
                 setQuizMode('sort');
             }
+            
             applyThemeColor();
         }
 
@@ -205,8 +220,6 @@
             if (field === 'japan') {
                 activeDatabase = [...japanDatabase];
                 btnJapan.className = "flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center bg-amber-900 text-white shadow-sm";
-                btnAll.textContent = `全${japanDatabase.length}問`;
-                document.getElementById("field-stats-badge").textContent = `江戸〜明治 (全${japanDatabase.length}問)`;
                 
                 // 日本史のときは同時期クイズを選択不可にするため、もし選ばれていたら並べ替えに戻す
                 if (settingsMode === 'same_era') {
@@ -215,8 +228,6 @@
             } else if (field === 'world') {
                 activeDatabase = [...worldDatabase];
                 btnWorld.className = "flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center bg-amber-900 text-white shadow-sm";
-                btnAll.textContent = `全${worldDatabase.length}問`;
-                document.getElementById("field-stats-badge").textContent = `近代市民革命〜帝国主義 (全${worldDatabase.length}問)`;
                 
                 // 世界史のときも同時期クイズを選択不可にするため、もし選ばれていたら並べ替えに戻す
                 if (settingsMode === 'same_era') {
@@ -226,10 +237,6 @@
                 // 'mixed' 混合モード
                 activeDatabase = [...japanDatabase, ...worldDatabase];
                 btnMixed.className = "flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center bg-amber-900 text-white shadow-sm";
-                
-                const totalMixedCount = japanDatabase.length + worldDatabase.length;
-                btnAll.textContent = `全${totalMixedCount}問`;
-                document.getElementById("field-stats-badge").textContent = `日本史 ＆ 世界史 混合 (全${totalMixedCount}問)`;
             }
 
             // 同時期できごとボタンの有効無効制御
@@ -244,6 +251,7 @@
             // 出題数ボタンのアクティブ・非アクティブを再適用
             setQuestionCount(settingsQuestionCount);
             applyThemeColor();
+            updateAvailableQuestionCount();
         }
 
         // クイズモードを切り替える
@@ -258,11 +266,13 @@
             // 全てのクイズモードボタンのアクティブ状態を一旦解除
             const btnInput = document.getElementById("btn-mode-input");
             const btnChoice = document.getElementById("btn-mode-choice");
+            const btnFlashcard = document.getElementById("btn-mode-flashcard");
             const btnSort = document.getElementById("btn-mode-sort");
             const btnSameEra = document.getElementById("btn-mode-same-era");
 
             btnInput.className = "py-2 px-3 bg-white text-stone-700 border border-stone-300 rounded-xl text-xs font-bold hover:bg-stone-50 transition-all flex flex-col items-center justify-center gap-0.5";
             btnChoice.className = "py-2 px-3 bg-white text-stone-700 border border-stone-300 rounded-xl text-xs font-bold hover:bg-stone-50 transition-all flex flex-col items-center justify-center gap-0.5";
+            if (btnFlashcard) btnFlashcard.className = "py-2 px-3 bg-white text-stone-700 border border-stone-300 rounded-xl text-xs font-bold hover:bg-stone-50 transition-all flex flex-col items-center justify-center gap-0.5";
             btnSort.className = "py-2 px-3 bg-white text-stone-700 border border-stone-300 rounded-xl text-xs font-bold hover:bg-stone-50 transition-all flex flex-col items-center justify-center gap-0.5";
             btnSameEra.className = "py-2 px-3 bg-white text-stone-700 border border-stone-300 rounded-xl text-xs font-bold hover:bg-stone-50 transition-all flex flex-col items-center justify-center gap-0.5 relative";
             if (settingsField !== 'mixed') btnSameEra.classList.add("opacity-50");
@@ -272,6 +282,8 @@
                 btnInput.className = "py-2 px-3 bg-amber-900 text-white rounded-xl text-xs font-bold transition-all border border-amber-900 flex flex-col items-center justify-center gap-0.5 shadow-inner";
             } else if (mode === 'choice') {
                 btnChoice.className = "py-2 px-3 bg-amber-900 text-white rounded-xl text-xs font-bold transition-all border border-amber-900 flex flex-col items-center justify-center gap-0.5 shadow-inner";
+            } else if (mode === 'flashcard' && btnFlashcard) {
+                btnFlashcard.className = "py-2 px-3 bg-amber-900 text-white rounded-xl text-xs font-bold transition-all border border-amber-900 flex flex-col items-center justify-center gap-0.5 shadow-inner";
             } else if (mode === 'sort') {
                 btnSort.className = "py-2 px-3 bg-[#4c6444] text-white rounded-xl text-xs font-bold transition-all border border-[#4c6444] flex flex-col items-center justify-center gap-0.5 shadow-inner";
             } else if (mode === 'same_era') {
@@ -300,6 +312,7 @@
                 desc.textContent = "全ての出来事からランダムに出題します。";
             }
             applyThemeColor();
+            updateAvailableQuestionCount();
         }
 
         // 出題数を設定する
@@ -316,6 +329,48 @@
                 }
             });
             applyThemeColor();
+        }
+
+        // 年代やモードの変更に応じて、出題可能な問題数を計算して表示を更新する
+        function updateAvailableQuestionCount() {
+            const startYearInput = document.getElementById("filter-start-year").value;
+            const endYearInput = document.getElementById("filter-end-year").value;
+            const startYear = startYearInput ? parseInt(startYearInput, 10) : -9999;
+            const endYear = endYearInput ? parseInt(endYearInput, 10) : 9999;
+
+            let filteredDatabase = activeDatabase.filter(item => item.year >= startYear && item.year <= endYear);
+            
+            if (isWeakOnlyMode) {
+                filteredDatabase = getWeakItemsForField(filteredDatabase, getStats());
+            }
+
+            const totalAvailable = filteredDatabase.length;
+            
+            const btnAll = document.getElementById("btn-count-all");
+            if (btnAll) {
+                btnAll.textContent = `全${totalAvailable}問`;
+            }
+
+            const fieldStatsBadge = document.getElementById("field-stats-badge");
+            if (fieldStatsBadge) {
+                let eraText = "";
+                if (settingsField === 'japan') {
+                    eraText = "日本史";
+                } else if (settingsField === 'world') {
+                    eraText = "世界史";
+                } else {
+                    eraText = "日本史 ＆ 世界史 混合";
+                }
+                
+                let filterText = "";
+                if (startYearInput || endYearInput) {
+                    filterText = `${startYearInput || '最初'}〜${endYearInput || '最後'}年`;
+                } else {
+                    filterText = "全年代";
+                }
+
+                fieldStatsBadge.textContent = `${eraText} | ${filterText} (対象: ${totalAvailable}問)`;
+            }
         }
 
         // カスタムアラートモーダル制御
@@ -351,6 +406,8 @@
             document.getElementById("start-screen").classList.remove("hidden");
             document.getElementById("quiz-screen").classList.add("hidden");
             document.getElementById("result-screen").classList.add("hidden");
+            document.getElementById("flashcard-screen").classList.add("hidden");
+            document.getElementById("fc-result-screen").classList.add("hidden");
             applyThemeColor();
         }
 
@@ -509,7 +566,10 @@
                 if (labelCount) labelCount.className = "font-bold text-[#4c6444] mb-1.5 flex items-center gap-1.5 text-xs tracking-wider uppercase transition-colors";
                 if (startIcon) startIcon.className = "text-[#4c6444] text-6xl mb-4 transition-colors";
                 if (settingBox) settingBox.className = "bg-[#edf2e8] p-5 rounded-2xl mb-6 max-w-md mx-auto border border-[#cbdcb3] text-left space-y-4 animate-fade-in transition-colors";
-                if (startBtn) startBtn.className = "flex-1 bg-[#4c6444] hover:bg-[#3d4f36] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all text-base tracking-wider flex items-center justify-center gap-2";
+                if (startBtn) {
+                    startBtn.className = "flex-1 bg-[#4c6444] hover:bg-[#3d4f36] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all text-base tracking-wider flex items-center justify-center gap-2";
+                    startBtn.innerHTML = `修行（クイズ） <i class="fa-solid fa-circle-play"></i>`;
+                }
                 if (sortSubmitBtn) sortSubmitBtn.className = "w-full sm:w-2/3 bg-[#4c6444] hover:bg-[#3d4f36] text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md";
                 if (progressBar) progressBar.className = "bg-[#4c6444] h-full transition-all duration-300";
                 if (modeBadge) {
@@ -543,7 +603,15 @@
                 if (labelCount) labelCount.className = "font-bold text-amber-900 mb-1.5 flex items-center gap-1.5 text-xs tracking-wider uppercase transition-colors";
                 if (startIcon) startIcon.className = "text-amber-700 text-6xl mb-4 transition-colors";
                 if (settingBox) settingBox.className = "bg-amber-50 p-5 rounded-2xl mb-6 max-w-md mx-auto border border-amber-100 text-left space-y-4 animate-fade-in transition-colors";
-                if (startBtn) startBtn.className = "flex-1 bg-amber-700 hover:bg-amber-800 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all text-base tracking-wider flex items-center justify-center gap-2";
+                if (startBtn) {
+                    if (settingsMode === 'flashcard') {
+                        startBtn.innerHTML = `<i class="fa-solid fa-layer-group"></i> 暗記を始める`;
+                        startBtn.className = "flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all text-base tracking-wider flex items-center justify-center gap-2";
+                    } else {
+                        startBtn.innerHTML = `修行（クイズ） <i class="fa-solid fa-circle-play"></i>`;
+                        startBtn.className = "flex-1 bg-amber-700 hover:bg-amber-800 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all text-base tracking-wider flex items-center justify-center gap-2";
+                    }
+                }
                 if (progressBar) progressBar.className = `${isReviewMode || isWeakOnlyMode ? "bg-red-600" : "bg-amber-600"} h-full transition-all duration-300`;
                 if (modeBadge) {
                     modeBadge.textContent = isReviewMode ? "苦手復習" : (isWeakOnlyMode ? "苦手克服" : "通常修行");
@@ -561,8 +629,161 @@
             }
         }
 
+        // ================= フラッシュカードモードの処理 =================
+        window.startFlashcards = function() {
+            window.quizStartTime = Date.now();
+            
+            // 年代フィルターの取得
+            const startYearInput = document.getElementById("filter-start-year").value;
+            const endYearInput = document.getElementById("filter-end-year").value;
+            const startYear = startYearInput ? parseInt(startYearInput, 10) : -9999;
+            const endYear = endYearInput ? parseInt(endYearInput, 10) : 9999;
+
+            // フィルター適用後のデータベース
+            const filteredDatabase = activeDatabase.filter(item => item.year >= startYear && item.year <= endYear);
+            
+            if (filteredDatabase.length === 0) {
+                showCustomAlert("お知らせ", "指定された年代のデータが見つかりません。", "fa-circle-info", "text-amber-700");
+                return;
+            }
+
+            // 出題数設定の取得 (「すべて」なら全件、それ以外なら制限)
+            let qCount = filteredDatabase.length;
+            if (settingsQuestionCount !== 'all') {
+                qCount = Math.min(parseInt(settingsQuestionCount, 10), filteredDatabase.length);
+            }
+            
+            flashcardQuestions = shuffle([...filteredDatabase]).slice(0, qCount);
+            fcIndex = 0;
+            fcRememberedCount = 0;
+            fcNotRememberedCount = 0;
+
+            document.getElementById("start-screen").classList.add("hidden");
+            document.getElementById("flashcard-screen").classList.remove("hidden");
+            
+            renderFlashcard();
+        }
+
+        function renderFlashcard() {
+            fcFlipped = false;
+            const cardInner = document.getElementById("flashcard-inner");
+            const btnArea = document.getElementById("fc-action-buttons");
+            const answerArea = document.getElementById("fc-answer-area");
+            const tapHint = document.getElementById("fc-tap-hint");
+            
+            // リセット
+            cardInner.className = "bg-white transition-colors duration-300 w-full min-h-[18rem] cursor-pointer shadow-lg rounded-2xl flex flex-col items-center justify-center p-6 border-4 border-stone-200 relative";
+            answerArea.classList.add("hidden");
+            tapHint.classList.remove("hidden");
+            
+            btnArea.classList.remove("opacity-100", "pointer-events-auto");
+            btnArea.classList.add("opacity-0", "pointer-events-none");
+
+            const q = flashcardQuestions[fcIndex];
+            
+            document.getElementById("fc-progress-text").textContent = `カード ${fcIndex + 1} / ${flashcardQuestions.length}`;
+            document.getElementById("fc-front-event").textContent = q.event;
+            document.getElementById("fc-back-year").textContent = q.year;
+            
+            const descEl = document.getElementById("fc-back-desc");
+            if (q.description) {
+                descEl.textContent = q.description;
+                descEl.classList.remove("hidden");
+            } else {
+                descEl.textContent = "";
+                descEl.classList.add("hidden");
+            }
+        }
+
+        window.flipFlashcard = function() {
+            if (fcFlipped) return; // すでに裏なら何もしない
+            fcFlipped = true;
+            
+            const cardInner = document.getElementById("flashcard-inner");
+            const btnArea = document.getElementById("fc-action-buttons");
+            const answerArea = document.getElementById("fc-answer-area");
+            const tapHint = document.getElementById("fc-tap-hint");
+            
+            // 答えを表示してスタイル変更
+            cardInner.className = "bg-amber-50 transition-colors duration-300 w-full min-h-[18rem] cursor-pointer shadow-lg rounded-2xl flex flex-col items-center justify-center p-6 border-4 border-amber-300 relative";
+            answerArea.classList.remove("hidden");
+            tapHint.classList.add("hidden");
+            
+            btnArea.classList.remove("opacity-0", "pointer-events-none");
+            btnArea.classList.add("opacity-100", "pointer-events-auto");
+        };
+
+        window.answerFlashcard = function(isRemembered) {
+            if (!fcFlipped) return;
+            
+            if (isRemembered) fcRememberedCount++;
+            else fcNotRememberedCount++;
+            
+            fcIndex++;
+            if (fcIndex >= flashcardQuestions.length) {
+                showFlashcardResult();
+            } else {
+                renderFlashcard();
+            }
+        };
+        
+        window.endFlashcardsEarly = function() {
+            document.getElementById("fc-confirm-modal").classList.remove("hidden");
+        };
+
+        window.closeFcConfirmModal = function() {
+            document.getElementById("fc-confirm-modal").classList.add("hidden");
+        };
+
+        window.executeEndFlashcards = function() {
+            closeFcConfirmModal();
+            showFlashcardResult();
+        };
+
+        function showFlashcardResult() {
+            document.getElementById("flashcard-screen").classList.add("hidden");
+            document.getElementById("fc-result-screen").classList.remove("hidden");
+            
+            document.getElementById("fc-score-remembered").textContent = fcRememberedCount;
+            document.getElementById("fc-score-forgot").textContent = fcNotRememberedCount;
+            
+            const total = fcRememberedCount + fcNotRememberedCount;
+            if (total === 0) {
+                document.getElementById("fc-tracker-result-area").classList.add("hidden");
+                return;
+            }
+            
+            // 学習時間計測
+            window.quizElapsedSec = Math.floor((Date.now() - (window.quizStartTime || Date.now())) / 1000);
+            
+            let fieldLabel = '日本史';
+            if (settingsField === 'world') fieldLabel = '世界史';
+            else if (settingsField === 'mixed') fieldLabel = '日世混合';
+            
+            window.quizModeTextFull = `【フラッシュカード予習】分野: ${fieldLabel} (覚えた: ${fcRememberedCount}/${total})`;
+            
+            const trackerArea = document.getElementById("fc-tracker-result-area");
+            if (localStorage.getItem('history_st_sync_room')) {
+                trackerArea.classList.remove("hidden");
+                const mins = Math.floor(window.quizElapsedSec / 60);
+                const secs = window.quizElapsedSec % 60;
+                document.getElementById("fc-tracker-result-time").textContent = `今回の予習時間: ${mins}分${secs}秒`;
+                document.getElementById("btn-fc-sync-submit").disabled = false;
+                document.getElementById("btn-fc-sync-submit").classList.remove("opacity-50", "hidden");
+                document.getElementById("fc-tracker-sync-status").classList.add("hidden");
+            } else {
+                trackerArea.classList.add("hidden");
+            }
+        }
+
         // ゲーム開始 (通常プレイ & 苦手克服 & 並べ替え & 同時期)
         function startGame() {
+            if (settingsMode === 'flashcard') {
+                startFlashcards();
+                return;
+            }
+            
+            window.quizStartTime = Date.now();
             isReviewMode = false;
             const stats = getStats();
             
@@ -674,6 +895,11 @@
                 document.getElementById("mode-badge").className = isWeakOnlyMode ? "text-[10px] md:text-xs bg-red-600 text-white font-bold px-2 py-1 rounded" : "text-[10px] md:text-xs bg-amber-100 text-amber-800 font-bold px-2 py-1 rounded";
                 document.getElementById("progress-bar").className = isWeakOnlyMode ? "bg-red-600 h-full transition-all duration-300" : "bg-amber-600 h-full transition-all duration-300";
             }
+
+            if (!currentQuestions || currentQuestions.length === 0) {
+                showCustomAlert("お知らせ", "条件に合う問題が十分に作成できませんでした。年代の範囲を広げるなどしてお試しください。", "fa-circle-info", "text-amber-700");
+                return;
+            }
             
             questionIndex = 0;
             score = 0;
@@ -693,6 +919,7 @@
 
         // 間違えた問題だけでやり直す処理
         function startReviewOnly() {
+            window.quizStartTime = Date.now();
             isReviewMode = true;
             
             currentQuestions = shuffle(incorrectQuestions);
@@ -1298,7 +1525,26 @@
             if (isReviewMode) reviewModeText = "【苦手復習】";
             else if (isWeakOnlyMode) reviewModeText = "【苦手克服】";
 
-            document.getElementById("result-mode-label").textContent = `${reviewModeText}分野: ${fieldLabel} | モード: ${modeLabel}`;
+            let modeTextFull = `${reviewModeText}分野: ${fieldLabel} | モード: ${modeLabel}`;
+            document.getElementById("result-mode-label").textContent = modeTextFull;
+
+            // 学習時間計測
+            window.quizElapsedSec = Math.floor((Date.now() - (window.quizStartTime || Date.now())) / 1000);
+            window.quizModeTextFull = `${modeTextFull} (正解: ${score}/${currentQuestions.length})`;
+            
+            const trackerArea = document.getElementById("tracker-result-area");
+            if (localStorage.getItem('history_st_sync_room')) {
+                trackerArea.classList.remove("hidden");
+                const mins = Math.floor(window.quizElapsedSec / 60);
+                const secs = window.quizElapsedSec % 60;
+                document.getElementById("tracker-result-time").textContent = `今回の修行時間: ${mins}分${secs}秒`;
+                document.getElementById("btn-sync-submit").disabled = false;
+                document.getElementById("btn-sync-submit").classList.remove("opacity-50");
+                document.getElementById("btn-sync-submit").classList.remove("hidden");
+                document.getElementById("tracker-sync-status").classList.add("hidden");
+            } else {
+                trackerArea.classList.add("hidden");
+            }
 
             const scoreRate = score / currentQuestions.length;
             let evaluation = "";
@@ -1499,3 +1745,149 @@
         function restartGame() {
             startGame();
         }
+
+// ================= Study Tracker 同期関連 UI処理 =================
+function openSettingsModal() {
+    document.getElementById('settings-modal').classList.remove('hidden');
+}
+
+function closeSettingsModal() {
+    document.getElementById('settings-modal').classList.add('hidden');
+}
+
+async function handleConnectTracker() {
+    const roomId = document.getElementById('sync-room-id').value.trim();
+    const password = document.getElementById('sync-password').value.trim();
+    const btnConnect = document.getElementById('btn-connect-tracker');
+    
+    btnConnect.disabled = true;
+    btnConnect.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 接続中...`;
+    
+    const result = await window.connectStudyTracker(roomId, password);
+    if (result && result.success) {
+        await updateTrackerBadgeUI(true);
+    }
+    
+    btnConnect.disabled = false;
+    btnConnect.innerHTML = `<i class="fa-solid fa-link"></i> 連携する`;
+}
+
+function handleDisconnectTracker() {
+    if (confirm("Study Trackerとの連携を解除しますか？")) {
+        window.disconnectStudyTracker();
+        updateTrackerBadgeUI(false);
+        document.getElementById('sync-room-id').value = '';
+        document.getElementById('sync-password').value = '';
+    }
+}
+
+async function updateTrackerBadgeUI(isConnected) {
+    const badge = document.getElementById('tracker-sync-badge');
+    const connectForm = document.getElementById('tracker-connect-form');
+    const connectedUI = document.getElementById('tracker-connected-ui');
+    const selectEl = document.getElementById('sync-subject-select');
+    
+    if (isConnected) {
+        badge.textContent = "連携済み";
+        badge.className = "text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full";
+        connectForm.classList.add("hidden");
+        connectedUI.classList.remove("hidden");
+        
+        // 科目リストを取得してセレクトボックスに反映
+        const subjects = await window.fetchStudyTrackerSubjects();
+        selectEl.innerHTML = '';
+        if (subjects && subjects.length > 0) {
+            subjects.forEach(sub => {
+                const opt = document.createElement('option');
+                opt.value = sub.id;
+                opt.textContent = sub.name;
+                selectEl.appendChild(opt);
+            });
+            // 保存済みの科目があれば選択、なければ最初の歴史系科目、なければ先頭を選択
+            let savedSub = localStorage.getItem('history_st_sync_subject');
+            if (!savedSub) {
+                const histSub = subjects.find(s => s.name === '歴史' || s.name === '社会');
+                if (histSub) savedSub = histSub.id;
+                else savedSub = subjects[0].id;
+                localStorage.setItem('history_st_sync_subject', savedSub);
+            }
+            selectEl.value = savedSub;
+        } else {
+            const opt = document.createElement('option');
+            opt.value = "";
+            opt.textContent = "科目がありません";
+            selectEl.appendChild(opt);
+        }
+    } else {
+        badge.textContent = "未連携";
+        badge.className = "text-[10px] text-stone-500 font-bold bg-stone-200 px-2 py-0.5 rounded-full";
+        connectForm.classList.remove("hidden");
+        connectedUI.classList.add("hidden");
+        selectEl.innerHTML = '<option value="">（読込中...）</option>';
+    }
+}
+
+function handleSubjectChange() {
+    const selectEl = document.getElementById('sync-subject-select');
+    if (selectEl.value) {
+        localStorage.setItem('history_st_sync_subject', selectEl.value);
+    }
+}
+
+async function submitToTracker() {
+    const btnSubmit = document.getElementById("btn-sync-submit");
+    const statusText = document.getElementById("tracker-sync-status");
+    
+    btnSubmit.disabled = true;
+    btnSubmit.classList.add("opacity-50");
+    btnSubmit.innerHTML = `送信中 <i class="fa-solid fa-spinner fa-spin ml-1"></i>`;
+    
+    const mins = Math.max(1, Math.round(window.quizElapsedSec / 60)); // 最低1分としてカウント(学習時間用)
+    
+    const success = await window.pushStudyTrackerRecord(mins, window.quizElapsedSec, window.quizModeTextFull);
+    
+    if (success) {
+        btnSubmit.classList.add("hidden");
+        statusText.classList.remove("hidden");
+    } else {
+        btnSubmit.disabled = false;
+        btnSubmit.classList.remove("opacity-50");
+        btnSubmit.innerHTML = `Study Trackerに記録する <i class="fa-solid fa-paper-plane ml-1"></i>`;
+    }
+}
+
+window.submitFcToTracker = async function() {
+    const btnSubmit = document.getElementById("btn-fc-sync-submit");
+    const statusText = document.getElementById("fc-tracker-sync-status");
+    
+    btnSubmit.disabled = true;
+    btnSubmit.classList.add("opacity-50");
+    btnSubmit.innerHTML = `送信中 <i class="fa-solid fa-spinner fa-spin ml-1"></i>`;
+    
+    const mins = Math.max(1, Math.round(window.quizElapsedSec / 60));
+    
+    const success = await window.pushStudyTrackerRecord(mins, window.quizElapsedSec, window.quizModeTextFull);
+    
+    if (success) {
+        btnSubmit.classList.add("hidden");
+        statusText.classList.remove("hidden");
+    } else {
+        btnSubmit.disabled = false;
+        btnSubmit.classList.remove("opacity-50");
+        btnSubmit.innerHTML = `Study Trackerに記録する <i class="fa-solid fa-paper-plane ml-1"></i>`;
+    }
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+    // ページロード時に、連携済みならUI更新
+    setTimeout(async () => {
+        if (window.checkSyncStatus) {
+            const status = await window.checkSyncStatus();
+            if (status.isConnected) {
+                document.getElementById('sync-room-id').value = status.roomId;
+                document.getElementById('sync-password').value = status.password;
+                updateTrackerBadgeUI(true);
+            }
+        }
+    }, 500); // syncスクリプトのロード待ち
+});

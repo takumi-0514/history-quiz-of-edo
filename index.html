@@ -51,13 +51,16 @@
             </h1>
             <!-- 大分類モード切り替えコントロール -->
             <div class="flex items-center gap-3 flex-wrap justify-center">
-                <div id="gtype-tab-container" class="flex bg-amber-950/60 p-1 rounded-xl border border-amber-800/40">
-                    <button onclick="setGlobalGameType('quiz')" id="btn-gtype-quiz" class="px-3 py-1 rounded-lg text-xs font-bold transition-all bg-amber-900 text-white shadow-sm">通常クイズ</button>
-                    <button onclick="setGlobalGameType('sort_era')" id="btn-gtype-sort" class="px-3 py-1 rounded-lg text-xs font-bold transition-all text-amber-200 hover:text-white">並べ替え・同時期</button>
+                <div id="gtype-tab-container" class="flex bg-amber-950/60 p-1 rounded-xl border border-amber-800/40 text-[11px] sm:text-xs">
+                    <button onclick="setGlobalGameType('quiz')" id="btn-gtype-quiz" class="px-2 sm:px-3 py-1 rounded-lg font-bold transition-all bg-amber-900 text-white shadow-sm">通常クイズ</button>
+                    <button onclick="setGlobalGameType('sort_era')" id="btn-gtype-sort" class="px-2 sm:px-3 py-1 rounded-lg font-bold transition-all text-amber-200 hover:text-white">並べ替え・同時期</button>
                 </div>
                 <div id="header-badge" class="text-xs bg-amber-800 px-3 py-1.5 rounded-full font-medium hidden md:block transition-colors">
                     日本史 ＆ 世界史 ＆ 混合対応
                 </div>
+                <button onclick="openSettingsModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-amber-950/40 text-amber-100 hover:text-white hover:bg-amber-950/60 transition-colors shadow-sm border border-amber-800/40">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
             </div>
         </div>
     </header>
@@ -137,14 +140,15 @@
                             <i class="fa-solid fa-gears"></i> クイズモード
                         </h3>
                         <!-- A. 通常クイズ時のモード選択 -->
-                        <div id="quiz-mode-selectors" class="grid grid-cols-2 gap-2">
+                        <div id="quiz-mode-selectors" class="grid grid-cols-3 gap-2">
                             <button onclick="setQuizMode('input')" id="btn-mode-input" class="py-2 px-3 text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 rounded-xl border">
-                                <span>出来事 ➔ 年号入力</span>
-                                <span class="text-[9px] opacity-85 font-normal hidden sm:inline">西暦4桁を直接キー入力</span>
+                                <span>出来事➔年号</span>
                             </button>
                             <button onclick="setQuizMode('choice')" id="btn-mode-choice" class="py-2 px-3 bg-white text-stone-700 border border-stone-300 rounded-xl text-xs font-bold hover:bg-stone-50 transition-all flex flex-col items-center justify-center gap-0.5">
-                                <span>年号 ➔ 出来事選択</span>
-                                <span class="text-[9px] text-stone-500 font-normal hidden sm:inline">類義テーマ等の4択</span>
+                                <span>年号➔出来事</span>
+                            </button>
+                            <button onclick="setQuizMode('flashcard')" id="btn-mode-flashcard" class="py-2 px-3 bg-white text-stone-700 border border-stone-300 rounded-xl text-xs font-bold hover:bg-stone-50 transition-all flex flex-col items-center justify-center gap-0.5">
+                                <span>暗記カード</span>
                             </button>
                         </div>
                         <!-- B. 並べ替え・同時期時のモード選択 -->
@@ -175,13 +179,13 @@
                 </div>
 
                 <!-- ボタンエリア -->
-                <div class="flex flex-col sm:flex-row gap-3 justify-center max-w-sm mx-auto">
-                    <button id="start-game-btn" onclick="startGame()" class="flex-1 bg-amber-700 hover:bg-amber-800 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all text-base tracking-wider flex items-center justify-center gap-2">
-                        修行を始める <i class="fa-solid fa-circle-play"></i>
+                <div class="flex flex-col sm:flex-row gap-3 justify-center w-full max-w-sm mx-auto">
+                    <button id="start-game-btn" onclick="startGame()" class="flex-1 bg-amber-700 hover:bg-amber-800 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all text-sm sm:text-base tracking-wider flex items-center justify-center gap-2">
+                        修行（クイズ） <i class="fa-solid fa-circle-play"></i>
                     </button>
                     <!-- 年表ボタン -->
-                    <button onclick="openTimeline()" class="bg-white hover:bg-stone-50 text-stone-700 border border-stone-300 font-bold py-3 px-5 rounded-xl transition-all flex items-center justify-center gap-2 text-base">
-                        <i class="fa-solid fa-chart-column text-amber-700"></i> 年表（対比記録）
+                    <button onclick="openTimeline()" class="flex-1 bg-white hover:bg-stone-50 text-stone-700 border border-stone-300 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm sm:text-base">
+                        <i class="fa-solid fa-chart-column text-amber-700"></i> 年表
                     </button>
                 </div>
             </div>
@@ -316,6 +320,87 @@
                 </div>
             </div>
 
+            <!-- フラッシュカード画面 -->
+            <div id="flashcard-screen" class="hidden p-6 md:p-8 flex flex-col h-full min-h-[400px]">
+                <div class="flex justify-between items-center mb-6">
+                    <span id="fc-progress-text" class="font-bold text-stone-500 text-sm">カード 1 / 10</span>
+                    <button onclick="endFlashcardsEarly()" class="text-stone-400 hover:text-stone-600 font-bold text-xs flex items-center gap-1 transition-colors">
+                        <i class="fa-solid fa-xmark"></i> 終了
+                    </button>
+                </div>
+
+                <div class="flex-1 flex flex-col justify-center items-center mb-6">
+                    <div class="w-full max-w-sm" onclick="flipFlashcard()">
+                        <div id="flashcard-inner" class="bg-white transition-colors duration-300 w-full min-h-[18rem] cursor-pointer shadow-lg rounded-2xl flex flex-col items-center justify-center p-6 border-4 border-stone-200 relative">
+                            <p id="fc-front-event" class="text-2xl md:text-3xl font-bold text-stone-800 text-center leading-snug">出来事ロード中...</p>
+                            
+                            <!-- 答え部分 (最初は非表示) -->
+                            <div id="fc-answer-area" class="mt-6 flex flex-col items-center hidden w-full">
+                                <hr class="w-full border-stone-200 mb-6">
+                                <p id="fc-back-year" class="text-5xl md:text-6xl font-black text-amber-700 mb-2 japanese-font">1192</p>
+                                <p id="fc-back-desc" class="text-sm text-stone-600 text-center line-clamp-3"></p>
+                            </div>
+                            
+                            <p id="fc-tap-hint" class="text-sm text-stone-400 mt-8 animate-pulse absolute bottom-4"><i class="fa-solid fa-hand-pointer"></i> タップして答えを見る</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="fc-action-buttons" class="flex gap-4 max-w-sm mx-auto w-full transition-opacity duration-300 opacity-0 pointer-events-none">
+                    <button onclick="answerFlashcard(false)" class="flex-1 bg-red-100 hover:bg-red-200 text-red-700 font-bold py-4 rounded-xl transition-all border border-red-200 flex flex-col items-center justify-center gap-1">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                        <span class="text-xs">覚えてない</span>
+                    </button>
+                    <button onclick="answerFlashcard(true)" class="flex-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold py-4 rounded-xl transition-all border border-emerald-200 flex flex-col items-center justify-center gap-1">
+                        <i class="fa-solid fa-check text-xl"></i>
+                        <span class="text-xs">覚えた！</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- フラッシュカード結果画面 -->
+            <div id="fc-result-screen" class="hidden p-6 md:p-8">
+                <div class="text-center mb-6">
+                    <div class="text-emerald-600 text-5xl mb-3">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold japanese-font mb-1.5">予習完了</h2>
+                    <p class="text-stone-500 text-xs">フラッシュカード学習お疲れ様でした！</p>
+                </div>
+
+                <div class="bg-stone-50 rounded-2xl p-5 text-center border border-stone-200 mb-6 max-w-sm mx-auto flex justify-around">
+                    <div>
+                        <p class="text-xs text-stone-500 font-bold mb-1">覚えた</p>
+                        <p class="text-2xl font-black text-emerald-600"><span id="fc-score-remembered">0</span><span class="text-sm">枚</span></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-stone-500 font-bold mb-1">覚えてない</p>
+                        <p class="text-2xl font-black text-red-500"><span id="fc-score-forgot">0</span><span class="text-sm">枚</span></p>
+                    </div>
+                </div>
+
+                <!-- Study Tracker 連携記録ボタン (FC用) -->
+                <div id="fc-tracker-result-area" class="hidden mb-6 bg-emerald-50 rounded-xl p-4 text-center border border-emerald-200 shadow-sm animate-fade-in max-w-sm mx-auto">
+                    <h3 class="font-bold text-emerald-900 mb-2 text-xs flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> 学習記録を送信
+                    </h3>
+                    <p class="text-[10px] text-stone-600 mb-3" id="fc-tracker-result-time">今回の予習時間: 計算中...</p>
+                    <button id="btn-fc-sync-submit" onclick="submitFcToTracker()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-lg transition-all shadow-md flex items-center justify-center gap-2 text-sm w-full">
+                        Study Trackerに記録する <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                    <p id="fc-tracker-sync-status" class="text-[10px] text-green-700 font-bold mt-2 hidden"><i class="fa-solid fa-check-circle"></i> 記録を送信しました！</p>
+                </div>
+
+                <div class="flex flex-col gap-3 max-w-sm mx-auto">
+                    <button onclick="startGame()" class="w-full bg-amber-700 hover:bg-amber-800 text-white font-bold py-3 px-4 rounded-xl transition-all shadow flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-circle-play"></i> すぐに修行（クイズ）に挑む
+                    </button>
+                    <button onclick="goToStart()" class="w-full bg-white hover:bg-stone-50 text-stone-700 border border-stone-300 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-1.5 text-sm">
+                        <i class="fa-solid fa-house"></i> トップに戻る
+                    </button>
+                </div>
+            </div>
+
             <!-- 結果画面 -->
             <div id="result-screen" class="hidden p-6 md:p-8">
                 <div class="text-center mb-6">
@@ -335,17 +420,29 @@
                     <div id="result-evaluation" class="text-stone-700 font-bold text-sm"></div>
                 </div>
 
-                <!-- 間違えた問題の復習エリア -->
-                <div id="incorrect-review-area" class="hidden mb-6">
-                    <h3 class="font-bold text-stone-800 mb-2.5 text-xs md:text-sm flex items-center gap-2">
-                        <i class="fa-solid fa-triangle-exclamation text-red-500"></i> 要復習の歴史
-                    </h3>
-                    <div id="incorrect-list" class="space-y-2 max-h-48 overflow-y-auto border border-stone-200 rounded-xl p-3 bg-white">
-                        <!-- ここに間違えた問題が追加されます -->
+                    <!-- 間違えた問題の復習エリア -->
+                    <div id="incorrect-review-area" class="hidden mb-6">
+                        <h3 class="font-bold text-stone-800 mb-2.5 text-xs md:text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-triangle-exclamation text-red-500"></i> 要復習の歴史
+                        </h3>
+                        <div id="incorrect-list" class="space-y-2 max-h-48 overflow-y-auto border border-stone-200 rounded-xl p-3 bg-white">
+                            <!-- ここに間違えた問題が追加されます -->
+                        </div>
                     </div>
-                </div>
 
-                <!-- アクションボタンエリア -->
+                    <!-- Study Tracker 連携記録ボタン -->
+                    <div id="tracker-result-area" class="hidden mb-6 bg-amber-50 rounded-xl p-4 text-center border border-amber-200 shadow-sm animate-fade-in">
+                        <h3 class="font-bold text-amber-900 mb-2 text-xs flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> 学習記録を送信
+                        </h3>
+                        <p class="text-[10px] text-stone-600 mb-3" id="tracker-result-time">今回の修行時間: 計算中...</p>
+                        <button id="btn-sync-submit" onclick="submitToTracker()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-lg transition-all shadow-md flex items-center justify-center gap-2 text-sm w-full max-w-xs mx-auto">
+                            Study Trackerに記録する <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                        <p id="tracker-sync-status" class="text-[10px] text-green-700 font-bold mt-2 hidden"><i class="fa-solid fa-check-circle"></i> 記録を送信しました！</p>
+                    </div>
+
+                    <!-- アクションボタンエリア -->
                 <div class="flex flex-col gap-3 max-w-sm mx-auto">
                     <!-- 間違えた問題だけやり直すボタン（間違えた問題がある場合のみ表示） -->
                     <button id="btn-review-only" onclick="startReviewOnly()" class="hidden w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow flex items-center justify-center gap-2 text-sm animate-bounce">
@@ -433,6 +530,27 @@
         </div>
     </div>
 
+    <!-- 暗記カード中断確認カスタムモーダル -->
+    <div id="fc-confirm-modal" class="hidden fixed inset-0 bg-stone-900/60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-stone-200 text-center animate-fade-in">
+            <div class="text-amber-500 text-4xl mb-3">
+                <i class="fa-solid fa-circle-question"></i>
+            </div>
+            <h3 class="text-lg font-bold text-stone-900 mb-2 japanese-font">予習を終了しますか？</h3>
+            <p class="text-stone-500 text-sm mb-6 leading-relaxed">
+                ここまでの記録で予習を終了し、結果画面へ移動しますか？
+            </p>
+            <div class="flex gap-3">
+                <button onclick="executeEndFlashcards()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">
+                    終了する
+                </button>
+                <button onclick="closeFcConfirmModal()" class="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold py-2 px-4 rounded-lg transition-colors text-sm">
+                    続ける
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- 中断確認カスタムモーダル -->
     <div id="confirm-modal" class="hidden fixed inset-0 bg-stone-900/60 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-stone-200 text-center animate-fade-in">
@@ -470,6 +588,62 @@
         </div>
     </div>
 
+    <!-- 設定モーダル -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-stone-900/60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-stone-200 animate-fade-in">
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="text-lg font-bold text-stone-800 flex items-center gap-2"><i class="fa-solid fa-gear text-amber-700"></i> 設定</h2>
+                <button onclick="closeSettingsModal()" class="text-stone-400 hover:text-stone-600 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-stone-100">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Study Tracker 連携 -->
+                <div>
+                    <h3 class="font-bold text-amber-900 mb-2.5 flex items-center justify-between text-xs tracking-wider uppercase">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-cloud-arrow-up"></i> Study Tracker 連携</span>
+                        <span id="tracker-sync-badge" class="text-[10px] text-stone-500 font-bold bg-stone-200 px-2 py-0.5 rounded-full">未連携</span>
+                    </h3>
+                    <div class="bg-stone-50 p-4 rounded-xl border border-stone-200 shadow-inner">
+                        <p class="text-xs text-stone-600 mb-3 leading-relaxed">Study Trackerの「同期ルームID」と「暗号化パスワード」を入力すると、学習時間を自動で記録できます。</p>
+                        
+                        <!-- 未連携時のUI -->
+                        <div id="tracker-connect-form">
+                            <div class="flex flex-col gap-2 mb-3">
+                                <input type="text" id="sync-room-id" placeholder="ルームID" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-amber-500 bg-white" />
+                                <input type="password" id="sync-password" placeholder="パスワード" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-amber-500 bg-white" />
+                            </div>
+                            <button type="button" onclick="handleConnectTracker()" id="btn-connect-tracker" class="w-full py-2 px-3 bg-amber-700 text-white rounded-lg text-sm font-bold shadow hover:bg-amber-800 transition-colors flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-link"></i> 連携する
+                            </button>
+                        </div>
+                        
+                        <!-- 連携済み時のUI -->
+                        <div id="tracker-connected-ui" class="hidden">
+                            <div class="mb-3">
+                                <label class="block text-[10px] text-stone-500 mb-1 font-bold">記録先の科目</label>
+                                <select id="sync-subject-select" onchange="handleSubjectChange()" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-amber-500 bg-white cursor-pointer shadow-sm">
+                                    <option value="">（読込中...）</option>
+                                </select>
+                            </div>
+                            <button type="button" onclick="handleDisconnectTracker()" id="btn-disconnect-tracker" class="w-full py-2 px-3 bg-stone-200 text-stone-700 rounded-lg text-sm font-bold shadow-sm hover:bg-stone-300 transition-colors flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-link-slash"></i> 連携を解除
+                            </button>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeSettingsModal()" class="bg-stone-800 text-white font-bold py-2.5 px-5 rounded-lg shadow hover:bg-stone-900 transition-colors text-sm">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- 記録リセット確認カスタムモーダル -->
     <div id="reset-confirm-modal" class="hidden fixed inset-0 bg-stone-900/60 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-stone-200 text-center animate-fade-in">
@@ -499,6 +673,7 @@
     </footer>
 
     <!-- JavaScript 制御 -->
+    <script type="module" src="tracker-sync.js"></script>
     <script src="data.js"></script>
     <script src="app.js"></script>
     <script>
