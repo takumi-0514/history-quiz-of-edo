@@ -484,6 +484,80 @@
                 </div>
             </div>
 
+            <!-- 年表検索＆絞り込みバー -->
+            <div class="bg-amber-50/90 border-b border-amber-200/80 p-3 sm:p-4 space-y-2.5 flex-shrink-0">
+                <!-- 検索入力行と分野タブ -->
+                <div class="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
+                    <!-- 検索ボックス -->
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm"></i>
+                        <input 
+                            id="timeline-search-input" 
+                            type="text" 
+                            placeholder="キーワード・年号・日本史・世界史で絞り込み (例: 1582, 信長, 宗教改革, 世界史...)" 
+                            class="w-full pl-9 pr-9 py-2 bg-white border border-stone-300 rounded-xl text-xs sm:text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600 shadow-sm transition-all"
+                            oninput="onTimelineSearchInput(this.value)"
+                        />
+                        <button 
+                            id="timeline-search-clear" 
+                            onclick="clearTimelineSearch()" 
+                            class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-1 transition-colors"
+                            title="検索をクリア"
+                        >
+                            <i class="fa-solid fa-circle-xmark text-sm"></i>
+                        </button>
+                    </div>
+
+                    <!-- 分野クイック切替タブ -->
+                    <div class="flex items-center gap-1 bg-white p-1 rounded-xl border border-stone-200 shadow-sm text-xs self-start sm:self-auto shrink-0">
+                        <button id="tl-tab-all" onclick="setTimelineFieldTab('all')" class="px-3 py-1.5 rounded-lg font-bold bg-amber-900 text-white transition-all shadow-xs">
+                            すべて
+                        </button>
+                        <button id="tl-tab-japan" onclick="setTimelineFieldTab('japan')" class="px-3 py-1.5 rounded-lg font-medium text-stone-600 hover:bg-stone-100 transition-all flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-600 inline-block"></span> 日本史
+                        </button>
+                        <button id="tl-tab-world" onclick="setTimelineFieldTab('world')" class="px-3 py-1.5 rounded-lg font-medium text-stone-600 hover:bg-stone-100 transition-all flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-stone-500 inline-block"></span> 世界史
+                        </button>
+                    </div>
+                </div>
+
+                <!-- クイック検索プリセット -->
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] text-stone-600">
+                    <span class="text-stone-400 font-bold whitespace-nowrap text-[10px]"><i class="fa-solid fa-bolt text-amber-600"></i> クイック:</span>
+                    <button type="button" onclick="setTimelineSearchPreset('信長')" class="whitespace-nowrap px-2.5 py-0.5 bg-white border border-stone-200 hover:border-amber-700 hover:text-amber-900 rounded-full transition-all">信長</button>
+                    <button type="button" onclick="setTimelineSearchPreset('明治')" class="whitespace-nowrap px-2.5 py-0.5 bg-white border border-stone-200 hover:border-amber-700 hover:text-amber-900 rounded-full transition-all">明治</button>
+                    <button type="button" onclick="setTimelineSearchPreset('宗教改革')" class="whitespace-nowrap px-2.5 py-0.5 bg-white border border-stone-200 hover:border-amber-700 hover:text-amber-900 rounded-full transition-all">宗教改革</button>
+                    <button type="button" onclick="setTimelineSearchPreset('世界大戦')" class="whitespace-nowrap px-2.5 py-0.5 bg-white border border-stone-200 hover:border-amber-700 hover:text-amber-900 rounded-full transition-all">世界大戦</button>
+                    <button type="button" onclick="setTimelineSearchPreset('条約')" class="whitespace-nowrap px-2.5 py-0.5 bg-white border border-stone-200 hover:border-amber-700 hover:text-amber-900 rounded-full transition-all">条約</button>
+                    <button type="button" onclick="setTimelineSearchPreset('1500-1600')" class="whitespace-nowrap px-2.5 py-0.5 bg-white border border-stone-200 hover:border-amber-700 hover:text-amber-900 rounded-full font-mono transition-all">1500〜1600年</button>
+                    <button type="button" onclick="setTimelineSearchPreset('1900-1945')" class="whitespace-nowrap px-2.5 py-0.5 bg-white border border-stone-200 hover:border-amber-700 hover:text-amber-900 rounded-full font-mono transition-all">1900〜1945年</button>
+                    <button type="button" onclick="setTimelineSearchPreset('苦手')" class="whitespace-nowrap px-2.5 py-0.5 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 rounded-full transition-all font-bold"><i class="fa-solid fa-triangle-exclamation"></i> 苦手な出来事</button>
+                </div>
+
+                <!-- 絞り込み件数表示 & クイズ開始ボタン行 -->
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-200/50 text-xs">
+                    <div id="timeline-search-count-info" class="text-stone-600 flex items-center gap-2 flex-wrap">
+                        <span class="text-stone-500 font-medium"><i class="fa-solid fa-filter"></i> 絞り込み結果:</span>
+                        <span class="bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-bold" id="tl-count-japan-badge">日本史 281件</span>
+                        <span class="bg-stone-200 text-stone-800 px-2 py-0.5 rounded font-bold" id="tl-count-world-badge">世界史 150件</span>
+                        <span class="text-stone-500 font-mono">(合計 <span id="tl-count-total-badge" class="font-bold text-stone-900">431</span>件)</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button 
+                            id="btn-quiz-from-timeline" 
+                            onclick="openFilteredQuizModal()" 
+                            class="bg-amber-800 hover:bg-amber-900 active:scale-95 text-white font-bold py-1.5 px-4 rounded-xl shadow transition-all flex items-center gap-2 text-xs tracking-wide cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <i class="fa-solid fa-graduation-cap"></i>
+                            <span>この絞り込みでクイズ開始</span>
+                            <span id="tl-quiz-btn-count" class="bg-amber-950 text-amber-200 px-2 py-0.5 rounded-full text-[10px] font-mono">431問</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- 年表メインスクロールエリア -->
             <div class="flex-grow p-4 md:p-6 overflow-y-auto space-y-6">
                 <!-- ガイド -->
@@ -505,6 +579,73 @@
                         <!-- JSで動的に「列」を生成 -->
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 絞り込みクイズ開始設定モーダル -->
+    <div id="filtered-quiz-modal" class="hidden fixed inset-0 bg-stone-900/70 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-stone-200 animate-fade-in relative text-left">
+            <button onclick="closeFilteredQuizModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-600 transition-colors">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="mb-4">
+                <div class="flex items-center gap-2 text-amber-800 text-xs font-bold uppercase tracking-wider mb-1">
+                    <i class="fa-solid fa-filter"></i> 絞り込み特訓クイズ
+                </div>
+                <h3 class="text-lg font-bold text-stone-900 japanese-font">絞り込んだ歴史で挑戦！</h3>
+                <div id="fq-summary-text" class="text-xs text-stone-700 mt-2 bg-amber-50/80 border border-amber-200 p-3 rounded-xl leading-relaxed">
+                    <!-- JSで動的に表示 -->
+                </div>
+            </div>
+
+            <!-- クイズモード選択 -->
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-stone-700 mb-2">出題形式を選択</label>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <button type="button" onclick="selectFqMode('choice')" id="fq-mode-choice" class="p-3 border-2 border-amber-800 bg-amber-50 text-amber-900 rounded-xl font-bold flex flex-col items-center gap-1 transition-all">
+                        <i class="fa-solid fa-list-check text-base"></i>
+                        <span>出来事選択4択</span>
+                    </button>
+                    <button type="button" onclick="selectFqMode('input')" id="fq-mode-input" class="p-3 border-2 border-stone-200 hover:border-amber-700 bg-white text-stone-700 rounded-xl font-bold flex flex-col items-center gap-1 transition-all">
+                        <i class="fa-solid fa-keyboard text-base"></i>
+                        <span>年号直接入力</span>
+                    </button>
+                    <button type="button" onclick="selectFqMode('flashcard')" id="fq-mode-flashcard" class="p-3 border-2 border-stone-200 hover:border-amber-700 bg-white text-stone-700 rounded-xl font-bold flex flex-col items-center gap-1 transition-all">
+                        <i class="fa-solid fa-clone text-base"></i>
+                        <span>フラッシュカード</span>
+                    </button>
+                    <button type="button" onclick="selectFqMode('sort')" id="fq-mode-sort" class="p-3 border-2 border-stone-200 hover:border-amber-700 bg-white text-stone-700 rounded-xl font-bold flex flex-col items-center gap-1 transition-all">
+                        <i class="fa-solid fa-arrow-down-1-9 text-base"></i>
+                        <span>年代並べ替え</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 出題問題数選択 -->
+            <div class="mb-5">
+                <label class="block text-xs font-bold text-stone-700 mb-2">出題数を選択</label>
+                <div class="flex gap-2 text-xs" id="fq-count-buttons">
+                    <button type="button" onclick="selectFqCount('all')" id="fq-count-all" class="flex-1 py-2 bg-amber-900 text-white font-bold rounded-lg transition-all">
+                        全問 (<span id="fq-count-all-num">0</span>)
+                    </button>
+                    <button type="button" onclick="selectFqCount(10)" id="fq-count-10" class="flex-1 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-lg transition-all">
+                        10問
+                    </button>
+                    <button type="button" onclick="selectFqCount(5)" id="fq-count-5" class="flex-1 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-lg transition-all">
+                        5問
+                    </button>
+                </div>
+            </div>
+
+            <!-- スタートボタン -->
+            <div class="flex gap-2">
+                <button type="button" onclick="closeFilteredQuizModal()" class="flex-1 py-2.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold rounded-xl text-xs transition-colors">
+                    キャンセル
+                </button>
+                <button type="button" onclick="startFilteredQuiz()" class="flex-2 py-2.5 px-6 bg-amber-700 hover:bg-amber-800 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                    クイズを開始する <i class="fa-solid fa-play"></i>
+                </button>
             </div>
         </div>
     </div>
@@ -673,14 +814,18 @@
     </footer>
 
     <!-- JavaScript 制御 -->
-    <script type="module" src="tracker-sync.js"></script>
-    <script src="data.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="tracker-sync.js?v=2.2"></script>
+    <script src="data.js?v=2.2"></script>
+    <script src="app.js?v=2.2"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('ServiceWorker registration successful.'))
+                navigator.serviceWorker.register('./sw.js?v=2.2')
+                    .then(reg => {
+                        console.log('ServiceWorker registration successful.');
+                        // Ensure active service worker updates immediately
+                        reg.update();
+                    })
                     .catch(err => console.error('ServiceWorker registration failed: ', err));
             });
         }

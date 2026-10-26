@@ -29,6 +29,15 @@
         let sortCorrectCards = [];      // 正しい時系列順の4枚のカード配列
         let selectedSortIndex = null;   // タップ選択されたカードのインデックス
 
+        // 年表検索・絞り込み特訓用の状態管理
+        let timelineSearchQuery = "";
+        let timelineFieldTab = "all";          // 'all' | 'japan' | 'world'
+        let timelineFilteredEvents = [];       // 絞り込まれた出来事一覧
+        let isFilteredQuizMode = false;        // 年表絞り込み特訓中フラグ
+        let filteredQuizLabel = "";            // 出題バッジ用の条件名
+        let filteredQuizSelectedMode = "choice"; // 'choice' | 'input' | 'flashcard' | 'sort'
+        let filteredQuizSelectedCount = "all";  // 'all' | 10 | 5
+
         // ページ読み込み時にセット
         window.onload = function() {
             setGlobalGameType('quiz'); // 通常クイズをデフォルトに
@@ -401,6 +410,10 @@
 
         // スタート画面に戻る
         function goToStart() {
+            if (isFilteredQuizMode) {
+                isFilteredQuizMode = false;
+                setHistoryField(settingsField);
+            }
             updateWeakBadge();
             const sortSubmitBtn = document.getElementById("sort-submit-btn");
             if (sortSubmitBtn) {
@@ -768,7 +781,11 @@
             if (settingsField === 'world') fieldLabel = '世界史';
             else if (settingsField === 'mixed') fieldLabel = '日世混合';
             
-            window.quizModeTextFull = `【フラッシュカード予習】分野: ${fieldLabel} (覚えた: ${fcRememberedCount}/${total})`;
+            let fcModeFull = `【フラッシュカード予習】分野: ${fieldLabel} (覚えた: ${fcRememberedCount}/${total})`;
+            if (isFilteredQuizMode) {
+                fcModeFull = `【フラッシュカード絞り込み特訓 ${filteredQuizLabel}】(覚えた: ${fcRememberedCount}/${total})`;
+            }
+            window.quizModeTextFull = fcModeFull;
             
             const trackerArea = document.getElementById("fc-tracker-result-area");
             if (localStorage.getItem('history_st_sync_room')) {
@@ -793,6 +810,7 @@
             
             window.quizStartTime = Date.now();
             isReviewMode = false;
+            isFilteredQuizMode = false;
             const stats = getStats();
             
             // 年代フィルターの取得
@@ -1122,6 +1140,19 @@
 
                     validCandidates.sort((a, b) => b.score - a.score);
                     const dummyChoices = validCandidates.slice(0, 3).map(c => c.item);
+
+                    // 候補が3件未満の場合（絞り込み特訓で出来事が少ない場合など）は全体から重複しないダミーを安全に補完
+                    if (dummyChoices.length < 3) {
+                        const fallbackPool = shuffle([...japanDatabase, ...worldDatabase]);
+                        for (const fbItem of fallbackPool) {
+                            if (fbItem.id !== currentQ.id && 
+                                fbItem.year !== currentQ.year && 
+                                !dummyChoices.some(d => d.id === fbItem.id)) {
+                                dummyChoices.push(fbItem);
+                            }
+                            if (dummyChoices.length === 3) break;
+                        }
+                    }
 
                     const choices = [currentQ, ...dummyChoices];
                     const shuffledChoices = shuffle(choices);
@@ -1534,6 +1565,9 @@
             else if (isWeakOnlyMode) reviewModeText = "【苦手克服】";
 
             let modeTextFull = `${reviewModeText}分野: ${fieldLabel} | モード: ${modeLabel}`;
+            if (isFilteredQuizMode) {
+                modeTextFull = `【絞り込み特訓 ${filteredQuizLabel}】出題: ${currentQuestions.length}問 | モード: ${modeLabel}`;
+            }
             document.getElementById("result-mode-label").textContent = modeTextFull;
 
             // 学習時間計測
@@ -1597,7 +1631,7 @@
             }
         }
 
-        // ================= 年表（スタッツ年表）表示とタップ解説の処理 =================
+        // ================= 年表（スタッツ年表）表示と検索・絞り込み特訓クイズの処理 =================
         function openTimeline() {
             renderTimeline();
             document.getElementById("timeline-screen").classList.remove("hidden");
@@ -1607,8 +1641,146 @@
             document.getElementById("timeline-screen").classList.add("hidden");
         }
 
+        // 検索語句のハイライト処理
+        function highlightSearchTerms(text, query) {
+            if (!text || !query) return text || "";
+            const trimmed = query.trim();
+            if (!trimmed) return text;
+
+            // 範囲指定トークンやジャンル名を除外してテキストトークンを抽出
+            const tokens = trimmed.split(/[\s,、　]+/)
+                .filter(t => t.length > 0 && !/^(\d{1,4})[-〜~](\d{1,4})$/.test(t) && t !== '日本史' && t !== '世界史' && t !== '日本' && t !== '世界' && t !== '苦手' && t !== 'ミス');
+            if (tokens.length === 0) return text;
+
+            let result = text;
+            tokens.forEach(tok => {
+                const escaped = tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                try {
+                    const regex = new RegExp(`(${escaped})`, 'gi');
+                    result = result.replace(regex, '<mark class="bg-amber-200 text-amber-950 font-bold px-0.5 rounded">$1</mark>');
+                } catch (e) {
+                    // 正規表現エラーの安全スルー
+                }
+            });
+            return result;
+        }
+
+        // 年表アイテムの検索・絞り込み判定関数
+        function matchTimelineFilter(item, query, fieldTab, stats) {
+            const isJapan = item.id.startsWith("jp_");
+            // 1. 分野タブ判定 ('all' | 'japan' | 'world')
+            if (fieldTab === 'japan' && !isJapan) return false;
+            if (fieldTab === 'world' && isJapan) return false;
+
+            // 2. 検索クエリ判定
+            if (!query) return true;
+            const q = query.trim().toLowerCase();
+            if (!q) return true;
+
+            const tokens = q.split(/[\s,、　]+/).filter(t => t.length > 0);
+            if (tokens.length === 0) return true;
+
+            // すべてのトークンに合致する必要がある (AND検索)
+            for (const token of tokens) {
+                // 年代範囲 (例: 1500-1600, 1500〜1600, 1500~1600)
+                const rangeMatch = token.match(/^(\d{1,4})[-〜~](\d{1,4})$/);
+                if (rangeMatch) {
+                    const startY = parseInt(rangeMatch[1], 10);
+                    const endY = parseInt(rangeMatch[2], 10);
+                    const min = Math.min(startY, endY);
+                    const max = Math.max(startY, endY);
+                    if (item.year < min || item.year > max) return false;
+                    continue;
+                }
+
+                // 西暦直接数値 (例: 1582, 1945)
+                if (/^\d{1,4}$/.test(token)) {
+                    const yNum = parseInt(token, 10);
+                    const yearStr = String(item.year);
+                    const matchesYear = (item.year === yNum) || yearStr.includes(token);
+                    const matchesText = (item.event && item.event.toLowerCase().includes(token)) ||
+                                        (item.description && item.description.toLowerCase().includes(token));
+                    if (!matchesYear && !matchesText) return false;
+                    continue;
+                }
+
+                // 日本史・世界史トークン
+                if (token === '日本史' || token === '日本') {
+                    if (!isJapan) return false;
+                    continue;
+                }
+                if (token === '世界史' || token === '世界') {
+                    if (isJapan) return false;
+                    continue;
+                }
+
+                // 苦手・要復習トークン
+                if (token === '苦手' || token === '間違えた' || token === 'ミス' || token === '要復習') {
+                    const s = stats[item.id] || { correct: 0, wrong: 0 };
+                    if (!(s.wrong > 0 && s.correct < s.wrong * 1.5)) return false;
+                    continue;
+                }
+
+                // テキスト部分一致（出来事名 または 解説文）
+                const eventText = (item.event || "").toLowerCase();
+                const descText = (item.description || "").toLowerCase();
+                if (!eventText.includes(token) && !descText.includes(token)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // 検索ボックス入力イベント
+        function onTimelineSearchInput(val) {
+            timelineSearchQuery = val || "";
+            const clearBtn = document.getElementById("timeline-search-clear");
+            if (clearBtn) {
+                if (timelineSearchQuery.length > 0) {
+                    clearBtn.classList.remove("hidden");
+                } else {
+                    clearBtn.classList.add("hidden");
+                }
+            }
+            renderTimeline();
+        }
+
+        // 検索クリア
+        function clearTimelineSearch() {
+            timelineSearchQuery = "";
+            const input = document.getElementById("timeline-search-input");
+            if (input) input.value = "";
+            const clearBtn = document.getElementById("timeline-search-clear");
+            if (clearBtn) clearBtn.classList.add("hidden");
+            renderTimeline();
+        }
+
+        // 検索プリセット設定
+        function setTimelineSearchPreset(preset) {
+            const input = document.getElementById("timeline-search-input");
+            if (input) input.value = preset;
+            onTimelineSearchInput(preset);
+        }
+
+        // 年表の分野タブ切替 ('all' | 'japan' | 'world')
+        function setTimelineFieldTab(tab) {
+            timelineFieldTab = tab;
+            const tabAll = document.getElementById("tl-tab-all");
+            const tabJp = document.getElementById("tl-tab-japan");
+            const tabWd = document.getElementById("tl-tab-world");
+
+            const activeCls = "px-3 py-1.5 rounded-lg font-bold bg-amber-900 text-white transition-all shadow-xs";
+            const inactiveCls = "px-3 py-1.5 rounded-lg font-medium text-stone-600 hover:bg-stone-100 transition-all flex items-center gap-1.5";
+
+            if (tabAll) tabAll.className = (tab === 'all') ? activeCls : "px-3 py-1.5 rounded-lg font-medium text-stone-600 hover:bg-stone-100 transition-all";
+            if (tabJp) tabJp.className = (tab === 'japan') ? activeCls : inactiveCls;
+            if (tabWd) tabWd.className = (tab === 'world') ? activeCls : inactiveCls;
+
+            renderTimeline();
+        }
+
         // 年表カードをタップしたときにポップアップ詳細を出す関数
-        // items: 同じ年・同じ分野の出来事の配列（1件でも複数件でもOK）
         function showTimelineDetail(items, type) {
             const modal = document.getElementById("timeline-detail-modal");
             const badge = document.getElementById("td-badge");
@@ -1629,14 +1801,16 @@
 
             entriesContainer.innerHTML = items.map(item => {
                 const s = stats[item.id] || { correct: 0, wrong: 0 };
+                const highlightedEvent = highlightSearchTerms(item.event, timelineSearchQuery);
+                const highlightedDesc = highlightSearchTerms(item.description, timelineSearchQuery);
                 return `
                 <div class="bg-stone-50 border border-stone-200 rounded-xl p-4 relative">
                     <div class="absolute top-3 right-3 flex gap-2 text-[10px] font-bold">
                         <span class="text-green-600 bg-green-50 px-1.5 py-0.5 rounded"><i class="fa-solid fa-square-check"></i> ${s.correct}</span>
                         <span class="text-red-500 bg-red-50 px-1.5 py-0.5 rounded"><i class="fa-solid fa-square-xmark"></i> ${s.wrong}</span>
                     </div>
-                    <h4 class="text-sm font-bold text-stone-900 japanese-font leading-snug mb-1.5 pr-16">${item.event}</h4>
-                    <p class="text-xs md:text-sm text-stone-600 leading-relaxed">${item.description}</p>
+                    <h4 class="text-sm font-bold text-stone-900 japanese-font leading-snug mb-1.5 pr-16">${highlightedEvent}</h4>
+                    <p class="text-xs md:text-sm text-stone-600 leading-relaxed">${highlightedDesc}</p>
                 </div>
             `}).join("");
 
@@ -1648,7 +1822,6 @@
         }
 
         // 歴史年表に格納するカードのHTML生成
-        // items: 同じ年・同じ分野の出来事の配列。複数あっても必ず1枚のカードにまとめる（＝縦の並びは日本史・世界史の2段のみになる）
         function createTimelineCard(items, stats, type) {
             let correctSum = 0;
             let wrongSum = 0;
@@ -1660,13 +1833,13 @@
 
             let borderClass = "border-stone-200 bg-white";
             if (wrongSum > 0 && wrongSum >= correctSum) {
-                borderClass = "border-red-300 bg-red-50/30";
+                borderClass = "border-red-300 bg-red-50/40 ring-1 ring-red-200";
             } else if (correctSum > 0) {
-                borderClass = "border-green-300 bg-green-50/10";
+                borderClass = "border-green-300 bg-green-50/20";
             }
 
             const card = document.createElement("div");
-            card.className = `w-full ${borderClass} border rounded-xl p-3 flex flex-col justify-between shadow-sm transition-all hover:scale-[1.03] duration-150 h-32 cursor-pointer`;
+            card.className = `w-full ${borderClass} border rounded-xl p-3 flex flex-col justify-between shadow-xs transition-all hover:scale-[1.03] duration-150 h-32 cursor-pointer`;
             
             card.onclick = (e) => {
                 e.stopPropagation();
@@ -1676,15 +1849,17 @@
             const countBadge = items.length > 1
                 ? `<span class="ml-1 text-[8px] bg-stone-700/80 text-white px-1.5 py-[1px] rounded-full">${items.length}件</span>`
                 : "";
-            const eventLabel = items.map(it => it.event).join(" ／ ");
+            const rawEventLabel = items.map(it => it.event).join(" ／ ");
+            const highlightedLabel = items.map(it => highlightSearchTerms(it.event, timelineSearchQuery)).join(" ／ ");
 
             card.innerHTML = `
                 <div class="flex flex-col justify-between h-full">
-                    <div class="text-[9px] font-bold ${type === 'japan' ? 'text-amber-800' : 'text-stone-600'} uppercase tracking-wider flex items-center">
-                        ${type === 'japan' ? '● 日本' : '🗺 世界'}${countBadge}
+                    <div class="text-[9px] font-bold ${type === 'japan' ? 'text-amber-800' : 'text-stone-600'} uppercase tracking-wider flex items-center justify-between">
+                        <span>${type === 'japan' ? '● 日本史' : '🗺 世界史'}${countBadge}</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[9px] text-stone-300"></i>
                     </div>
-                    <div class="text-xs text-stone-700 font-medium leading-snug break-words h-14 overflow-hidden line-clamp-3 my-1" title="${eventLabel}">
-                        ${eventLabel}
+                    <div class="text-xs text-stone-700 font-medium leading-snug break-words h-14 overflow-hidden line-clamp-3 my-1" title="${rawEventLabel}">
+                        ${highlightedLabel}
                     </div>
                     <div class="pt-1 border-t border-stone-100 flex justify-between text-[9px] font-bold">
                         <span class="text-green-600"><i class="fa-solid fa-square-check"></i> ${correctSum}</span>
@@ -1695,25 +1870,68 @@
             return card;
         }
 
+        // 年表の全体レンダリング（絞り込み・検索反映）
         function renderTimeline() {
             const stats = getStats();
             const container = document.getElementById("timeline-cols-container");
+            if (!container) return;
             container.innerHTML = "";
 
-            // 日本史と世界史のすべての年号を取得し、ソートして重複を排除
-            const allYears = Array.from(new Set([
-                ...japanDatabase.map(d => d.year),
-                ...worldDatabase.map(d => d.year)
+            // 1. 日本史と世界史のデータをフィルター判定
+            const jpFiltered = japanDatabase.filter(item => matchTimelineFilter(item, timelineSearchQuery, timelineFieldTab, stats));
+            const wdFiltered = worldDatabase.filter(item => matchTimelineFilter(item, timelineSearchQuery, timelineFieldTab, stats));
+            
+            timelineFilteredEvents = [...jpFiltered, ...wdFiltered];
+            const totalCount = timelineFilteredEvents.length;
+
+            // 2. 件数バッジとクイズ開始ボタンの更新
+            const badgeJp = document.getElementById("tl-count-japan-badge");
+            const badgeWd = document.getElementById("tl-count-world-badge");
+            const badgeTotal = document.getElementById("tl-count-total-badge");
+            const quizBtnCount = document.getElementById("tl-quiz-btn-count");
+            const quizBtn = document.getElementById("btn-quiz-from-timeline");
+
+            if (badgeJp) badgeJp.textContent = `日本史 ${jpFiltered.length}件`;
+            if (badgeWd) badgeWd.textContent = `世界史 ${wdFiltered.length}件`;
+            if (badgeTotal) badgeTotal.textContent = totalCount;
+            if (quizBtnCount) quizBtnCount.textContent = `${totalCount}問`;
+            if (quizBtn) {
+                quizBtn.disabled = (totalCount === 0);
+            }
+
+            // 3. 0件時の空ステート表示
+            if (totalCount === 0) {
+                container.innerHTML = `
+                    <div class="w-full py-16 px-4 flex flex-col items-center justify-center text-center text-stone-500 my-auto">
+                        <div class="w-14 h-14 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-2xl mb-3 shadow-inner">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </div>
+                        <h4 class="font-bold text-stone-800 text-base mb-1.5 japanese-font">該当する出来事が見つかりませんでした</h4>
+                        <p class="text-xs text-stone-500 max-w-sm leading-relaxed mb-4">
+                            検索キーワードや年代の範囲（例:「1582」「信長」「1500-1600」）を変えてお試しいただくか、上のクイックタグをお試しください。
+                        </p>
+                        <button type="button" onclick="clearTimelineSearch()" class="text-xs bg-amber-900 hover:bg-amber-950 text-white font-bold py-2 px-5 rounded-xl shadow transition-all flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate-left"></i> 検索条件をクリア
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            // 4. 重複排除して年代順にソート
+            const matchedYears = Array.from(new Set([
+                ...jpFiltered.map(d => d.year),
+                ...wdFiltered.map(d => d.year)
             ])).sort((a, b) => a - b);
 
-            allYears.forEach(y => {
-                const jpItems = japanDatabase.filter(d => d.year === y);
-                const wdItems = worldDatabase.filter(d => d.year === y);
+            matchedYears.forEach(y => {
+                const jpItems = jpFiltered.filter(d => d.year === y);
+                const wdItems = wdFiltered.filter(d => d.year === y);
 
                 const col = document.createElement("div");
                 col.className = "flex flex-col items-center w-48 flex-shrink-0 gap-2";
 
-                // 1. 上段：日本史エリア（同じ年の出来事は必ず1枚のカードにまとめる＝縦に増えない）
+                // 上段：日本史エリア
                 const jpArea = document.createElement("div");
                 jpArea.className = "w-full flex flex-col flex-grow justify-end min-h-[128px]";
                 if (jpItems.length > 0) {
@@ -1725,12 +1943,12 @@
                     jpArea.appendChild(placeholder);
                 }
 
-                // 2. 中段：中央年号バッジ
+                // 中段：中央年号バッジ
                 const yearBadge = document.createElement("div");
                 yearBadge.className = "w-full py-1 bg-amber-900 text-amber-50 rounded-lg text-xs font-bold text-center font-mono shadow-sm border border-amber-800/80 my-1 flex-shrink-0 sticky z-10";
                 yearBadge.textContent = `${y} 年`;
 
-                // 3. 下段：世界史エリア（同じ年の出来事は必ず1枚のカードにまとめる＝縦に増えない）
+                // 下段：世界史エリア
                 const wdArea = document.createElement("div");
                 wdArea.className = "w-full flex flex-col flex-grow justify-start min-h-[128px]";
                 if (wdItems.length > 0) {
@@ -1749,10 +1967,239 @@
             });
         }
 
+        // ================= 絞り込み特訓クイズ開始モーダル & 実行ロジック =================
+        function openFilteredQuizModal() {
+            if (!timelineFilteredEvents || timelineFilteredEvents.length === 0) {
+                showCustomAlert("お知らせ", "出題対象の出来事がありません。検索条件を変更してください。", "fa-circle-info", "text-amber-700");
+                return;
+            }
+
+            const modal = document.getElementById("filtered-quiz-modal");
+            const summaryText = document.getElementById("fq-summary-text");
+            const countAllNum = document.getElementById("fq-count-all-num");
+
+            let tabLabel = "日本史 & 世界史";
+            if (timelineFieldTab === 'japan') tabLabel = "日本史";
+            else if (timelineFieldTab === 'world') tabLabel = "世界史";
+
+            let conditionDetail = [];
+            if (timelineSearchQuery.trim()) {
+                conditionDetail.push(`キーワード: 「<strong>${timelineSearchQuery.trim()}</strong>」`);
+            }
+            conditionDetail.push(`分野: <strong>${tabLabel}</strong>`);
+
+            summaryText.innerHTML = `
+                <div class="flex items-center justify-between mb-1">
+                    <span>${conditionDetail.join(" / ")}</span>
+                    <span class="text-amber-900 font-bold bg-amber-100 px-2 py-0.5 rounded-full font-mono text-[11px]">${timelineFilteredEvents.length} 件</span>
+                </div>
+                <p class="text-[11px] text-stone-500">この条件に一致した歴史の出来事から集中出題します。</p>
+            `;
+
+            if (countAllNum) countAllNum.textContent = timelineFilteredEvents.length;
+
+            // 初期選択
+            selectFqMode('choice');
+            selectFqCount('all');
+
+            // 出題数ボタンの有効化・無効化
+            const btn10 = document.getElementById("fq-count-10");
+            const btn5 = document.getElementById("fq-count-5");
+            if (btn10) {
+                if (timelineFilteredEvents.length < 10) {
+                    btn10.classList.add("opacity-40", "pointer-events-none");
+                } else {
+                    btn10.classList.remove("opacity-40", "pointer-events-none");
+                }
+            }
+            if (btn5) {
+                if (timelineFilteredEvents.length < 5) {
+                    btn5.classList.add("opacity-40", "pointer-events-none");
+                } else {
+                    btn5.classList.remove("opacity-40", "pointer-events-none");
+                }
+            }
+
+            // 並べ替えモードの有効化判定 (最低4件必要)
+            const btnSort = document.getElementById("fq-mode-sort");
+            if (btnSort) {
+                if (timelineFilteredEvents.length < 4) {
+                    btnSort.classList.add("opacity-40", "pointer-events-none");
+                    btnSort.title = "並べ替えには最低4件の出来事が必要です";
+                } else {
+                    btnSort.classList.remove("opacity-40", "pointer-events-none");
+                    btnSort.title = "";
+                }
+            }
+
+            modal.classList.remove("hidden");
+        }
+
+        function closeFilteredQuizModal() {
+            document.getElementById("filtered-quiz-modal").classList.add("hidden");
+        }
+
+        function selectFqMode(mode) {
+            filteredQuizSelectedMode = mode;
+            const modes = ['choice', 'input', 'flashcard', 'sort'];
+            modes.forEach(m => {
+                const btn = document.getElementById(`fq-mode-${m}`);
+                if (!btn) return;
+                if (m === mode) {
+                    btn.className = "p-3 border-2 border-amber-800 bg-amber-50 text-amber-900 rounded-xl font-bold flex flex-col items-center gap-1 transition-all shadow-xs";
+                } else {
+                    btn.className = "p-3 border-2 border-stone-200 hover:border-amber-700 bg-white text-stone-700 rounded-xl font-bold flex flex-col items-center gap-1 transition-all";
+                }
+            });
+        }
+
+        function selectFqCount(cnt) {
+            filteredQuizSelectedCount = cnt;
+            const counts = ['all', 10, 5];
+            counts.forEach(c => {
+                const btn = document.getElementById(`fq-count-${c}`);
+                if (!btn) return;
+                if (c === cnt) {
+                    btn.className = "flex-1 py-2 bg-amber-900 text-white font-bold rounded-lg transition-all shadow-xs";
+                } else {
+                    btn.className = "flex-1 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-lg transition-all";
+                }
+            });
+        }
+
+        function startFilteredQuiz() {
+            if (!timelineFilteredEvents || timelineFilteredEvents.length === 0) {
+                showCustomAlert("お知らせ", "出題対象の出来事がありません。", "fa-circle-info", "text-amber-700");
+                return;
+            }
+
+            closeFilteredQuizModal();
+            closeTimeline();
+
+            isFilteredQuizMode = true;
+            let tabLabel = "日世混合";
+            if (timelineFieldTab === 'japan') tabLabel = "日本史";
+            else if (timelineFieldTab === 'world') tabLabel = "世界史";
+            
+            filteredQuizLabel = timelineSearchQuery.trim()
+                ? `"${timelineSearchQuery.trim()}" (${tabLabel})`
+                : `年表絞り込み (${tabLabel})`;
+
+            let qCount = timelineFilteredEvents.length;
+            if (filteredQuizSelectedCount !== 'all') {
+                qCount = Math.min(parseInt(filteredQuizSelectedCount, 10), timelineFilteredEvents.length);
+            }
+
+            // フラッシュカードモードの場合
+            if (filteredQuizSelectedMode === 'flashcard') {
+                window.quizStartTime = Date.now();
+                flashcardQuestions = shuffle([...timelineFilteredEvents]).slice(0, qCount);
+                fcIndex = 0;
+                fcRememberedCount = 0;
+                fcNotRememberedCount = 0;
+
+                document.getElementById("start-screen").classList.add("hidden");
+                document.getElementById("quiz-screen").classList.add("hidden");
+                document.getElementById("result-screen").classList.add("hidden");
+                document.getElementById("fc-result-screen").classList.add("hidden");
+                document.getElementById("flashcard-screen").classList.remove("hidden");
+
+                renderFlashcard();
+                return;
+            }
+
+            // クイズ形式（choice / input / sort）
+            settingsMode = filteredQuizSelectedMode;
+            window.quizStartTime = Date.now();
+            isReviewMode = false;
+            isWeakOnlyMode = false;
+
+            if (settingsMode === 'sort') {
+                const questionsList = [];
+                const loops = (filteredQuizSelectedCount === 'all')
+                    ? Math.max(1, Math.min(10, Math.floor(timelineFilteredEvents.length / 4) || 1))
+                    : Math.min(qCount, Math.floor(timelineFilteredEvents.length / 4) || 1);
+
+                for (let i = 0; i < loops; i++) {
+                    const set = get4CloseDistinctYearEvents(timelineFilteredEvents);
+                    if (set.length === 4) {
+                        questionsList.push(set);
+                    }
+                }
+                if (questionsList.length === 0) {
+                    const distinctMap = new Map();
+                    timelineFilteredEvents.forEach(e => {
+                        if (!distinctMap.has(e.year)) distinctMap.set(e.year, e);
+                    });
+                    const distinctList = Array.from(distinctMap.values());
+                    if (distinctList.length >= 4) {
+                        questionsList.push(shuffle(distinctList).slice(0, 4));
+                    } else {
+                        showCustomAlert("お知らせ", "並べ替えには異なる年代の出来事が4つ以上必要です。別の出題形式をお選びください。", "fa-circle-info", "text-amber-700");
+                        return;
+                    }
+                }
+                currentQuestions = questionsList;
+            } else {
+                currentQuestions = shuffle([...timelineFilteredEvents]).slice(0, qCount);
+            }
+
+            questionIndex = 0;
+            score = 0;
+            incorrectAnswers = [];
+            incorrectQuestions = [];
+            currentInput = "";
+            hasAnswered = false;
+
+            const modeBadge = document.getElementById("mode-badge");
+            if (modeBadge) {
+                modeBadge.textContent = "絞り込み特訓";
+                modeBadge.className = "text-[10px] md:text-xs bg-amber-900 text-amber-50 font-bold px-2 py-1 rounded shadow-xs";
+            }
+            const progressBar = document.getElementById("progress-bar");
+            if (progressBar) {
+                progressBar.className = "bg-amber-800 h-full transition-all duration-300";
+            }
+
+            document.getElementById("start-screen").classList.add("hidden");
+            document.getElementById("timeline-screen").classList.add("hidden");
+            document.getElementById("result-screen").classList.add("hidden");
+            document.getElementById("flashcard-screen").classList.add("hidden");
+            document.getElementById("fc-result-screen").classList.add("hidden");
+            document.getElementById("quiz-screen").classList.remove("hidden");
+
+            document.getElementById("current-score").textContent = score;
+            document.getElementById("total-questions-count").textContent = currentQuestions.length;
+
+            loadQuestion();
+            applyThemeColor();
+        }
+
         // もう一度挑戦する処理
         function restartGame() {
-            startGame();
+            if (isFilteredQuizMode) {
+                startFilteredQuiz();
+            } else {
+                startGame();
+            }
         }
+
+        // 年表・絞り込み関連の関数をグローバル（window）に明示登録
+        window.openTimeline = openTimeline;
+        window.closeTimeline = closeTimeline;
+        window.renderTimeline = renderTimeline;
+        window.onTimelineSearchInput = onTimelineSearchInput;
+        window.clearTimelineSearch = clearTimelineSearch;
+        window.setTimelineSearchPreset = setTimelineSearchPreset;
+        window.setTimelineFieldTab = setTimelineFieldTab;
+        window.showTimelineDetail = showTimelineDetail;
+        window.closeTimelineDetail = closeTimelineDetail;
+        window.openFilteredQuizModal = openFilteredQuizModal;
+        window.closeFilteredQuizModal = closeFilteredQuizModal;
+        window.selectFqMode = selectFqMode;
+        window.selectFqCount = selectFqCount;
+        window.startFilteredQuiz = startFilteredQuiz;
+        window.restartGame = restartGame;
 
 // ================= Study Tracker 同期関連 UI処理 =================
 function openSettingsModal() {
