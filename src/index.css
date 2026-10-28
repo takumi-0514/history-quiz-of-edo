@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background-color: #f5f3ef;
+  transition: background-color 0.3s ease;
+}
+
+.japanese-font {
+  font-family: 'Kiwi Maru', 'Noto Sans JP', serif;
+}
+
+/* スクロールバーのカスタマイズ（年表用） */
+.timeline-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+.timeline-scroll::-webkit-scrollbar-track {
+  background: #f1ede7;
+  border-radius: 9999px;
+}
+.timeline-scroll::-webkit-scrollbar-thumb {
+  background: #c2b5a3;
+  border-radius: 9999px;
+  border: 2px solid #f1ede7;
+}
+.timeline-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a3937f;
+}
