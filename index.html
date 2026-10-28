@@ -814,13 +814,13 @@
     </footer>
 
     <!-- JavaScript 制御 -->
-    <script type="module" src="tracker-sync.js?v=2.2"></script>
-    <script src="data.js?v=2.2"></script>
-    <script src="app.js?v=2.2"></script>
+    <script type="module" src="tracker-sync.js?v=2.3"></script>
+    <script src="data.js?v=2.3"></script>
+    <script src="app.js?v=2.3"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=2.2')
+                navigator.serviceWorker.register('./sw.js?v=2.3')
                     .then(reg => {
                         console.log('ServiceWorker registration successful.');
                         // Ensure active service worker updates immediately

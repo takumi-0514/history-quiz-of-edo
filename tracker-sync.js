@@ -347,9 +347,16 @@ export async function setupRealtimeSync() {
                 } else {
                     const maxCorrect = Math.max(localStats[key].correct || 0, remoteStats[key].correct || 0);
                     const maxWrong = Math.max(localStats[key].wrong || 0, remoteStats[key].wrong || 0);
-                    if (localStats[key].correct !== maxCorrect || localStats[key].wrong !== maxWrong) {
+                    const localStreak = typeof localStats[key].streak === 'number' ? localStats[key].streak : (localStats[key].correct >= 3 ? 3 : 0);
+                    const remoteStreak = typeof remoteStats[key].streak === 'number' ? remoteStats[key].streak : (remoteStats[key].correct >= 3 ? 3 : 0);
+                    const maxStreak = Math.max(localStreak, remoteStreak);
+                    const isWeak = (maxWrong > 0 && maxStreak < 3);
+
+                    if (localStats[key].correct !== maxCorrect || localStats[key].wrong !== maxWrong || localStats[key].streak !== maxStreak || localStats[key].isWeak !== isWeak) {
                         localStats[key].correct = maxCorrect;
                         localStats[key].wrong = maxWrong;
+                        localStats[key].streak = maxStreak;
+                        localStats[key].isWeak = isWeak;
                         hasChanges = true;
                     }
                 }
@@ -404,9 +411,16 @@ export function syncHistoryStatsToCloud(localStats) {
                 } else {
                     const maxCorrect = Math.max(remoteStats[key].correct || 0, localStats[key].correct || 0);
                     const maxWrong = Math.max(remoteStats[key].wrong || 0, localStats[key].wrong || 0);
-                    if (remoteStats[key].correct !== maxCorrect || remoteStats[key].wrong !== maxWrong) {
+                    const localStreak = typeof localStats[key].streak === 'number' ? localStats[key].streak : (localStats[key].correct >= 3 ? 3 : 0);
+                    const remoteStreak = typeof remoteStats[key].streak === 'number' ? remoteStats[key].streak : (remoteStats[key].correct >= 3 ? 3 : 0);
+                    const maxStreak = Math.max(localStreak, remoteStreak);
+                    const isWeak = (maxWrong > 0 && maxStreak < 3);
+
+                    if (remoteStats[key].correct !== maxCorrect || remoteStats[key].wrong !== maxWrong || remoteStats[key].streak !== maxStreak || remoteStats[key].isWeak !== isWeak) {
                         remoteStats[key].correct = maxCorrect;
                         remoteStats[key].wrong = maxWrong;
+                        remoteStats[key].streak = maxStreak;
+                        remoteStats[key].isWeak = isWeak;
                         hasChanges = true;
                     }
                 }

@@ -72,22 +72,63 @@
             return arr;
         }
 
+        // ================= 苦手判定ヘルパー =================
+        // 条件：間違えた回数が1回以上あり、かつ「3回連続正解（streak >= 3）」していない問題
+        function isItemWeak(s) {
+            if (!s || !s.wrong || s.wrong <= 0) return false;
+            if (typeof s.isWeak === 'boolean') {
+                return s.isWeak;
+            }
+            if (typeof s.streak === 'number') {
+                return s.streak < 3;
+            }
+            // 過去データ（streak未保存時）の後方互換
+            return s.correct < s.wrong * 1.5;
+        }
+
         function saveStats(id, isCorrect) {
             const stats = getStats();
             if (!stats[id]) {
-                stats[id] = { correct: 0, wrong: 0 };
-            }
-            if (isCorrect) {
-                stats[id].correct += 1;
+                stats[id] = { correct: 0, wrong: 0, streak: 0, isWeak: false };
             } else {
-                stats[id].wrong += 1;
+                if (typeof stats[id].streak !== 'number') {
+                    const currentWeak = isItemWeak(stats[id]);
+                    stats[id].streak = currentWeak ? 0 : 3;
+                    stats[id].isWeak = currentWeak;
+                }
             }
+
+            const wasWeak = isItemWeak(stats[id]);
+            let newlyOvercome = false;
+
+            if (isCorrect) {
+                stats[id].correct = (stats[id].correct || 0) + 1;
+                stats[id].streak = (stats[id].streak || 0) + 1;
+                if (stats[id].isWeak) {
+                    if (stats[id].streak >= 3) {
+                        stats[id].isWeak = false;
+                        newlyOvercome = true;
+                    }
+                }
+            } else {
+                stats[id].wrong = (stats[id].wrong || 0) + 1;
+                stats[id].streak = 0;
+                stats[id].isWeak = true;
+            }
+
             localStorage.setItem(STATS_KEY, JSON.stringify(stats));
             updateWeakBadge();
             
             if (window.syncHistoryStatsToCloud) {
                 window.syncHistoryStatsToCloud(stats);
             }
+
+            return {
+                wasWeak,
+                isWeak: stats[id].isWeak,
+                streak: stats[id].streak,
+                newlyOvercome
+            };
         }
 
         // 記録を初期化する
@@ -97,34 +138,32 @@
 
         // ================= 苦手克服対象の抽出ロジック =================
         // 条件：
-        // 1. 過去に間違えた回数（wrong）が1回以上である
-        // 2. 正解した回数（correct）が間違えた回数（wrong）の1.5倍未満である（correct < wrong * 1.5）
-        // 3. 上記に該当するものを「間違えた回数（wrong）」が多い順に並べ、上位5位（同率含む）までを抽出する
+        // 1. 間違えてから3回連続正解していない問題（isItemWeak === true）
+        // 2. 連続正解数が少ない順（克服から遠い順：0回→1回→2回）、次いで間違えた回数（wrong）が多い順にソート
         function getWeakItemsForField(database, stats) {
             // 1. 未克服の苦手問題を抽出
             const candidates = database.filter(item => {
                 const s = stats[item.id];
-                return s && s.wrong > 0 && s.correct < s.wrong * 1.5;
+                return isItemWeak(s);
             });
             
             if (candidates.length === 0) return [];
 
-            // 2. 間違えた回数（wrong）が多い順にソート
+            // 2. 連続正解数が少ない順（0 -> 1 -> 2）、次いで間違えた回数（wrong）が多い順にソート
             candidates.sort((a, b) => {
-                const sA = stats[a.id];
-                const sB = stats[b.id];
-                const wrongDiff = sB.wrong - sA.wrong;
+                const sA = stats[a.id] || { correct: 0, wrong: 0, streak: 0 };
+                const sB = stats[b.id] || { correct: 0, wrong: 0, streak: 0 };
+                const streakA = typeof sA.streak === 'number' ? sA.streak : 0;
+                const streakB = typeof sB.streak === 'number' ? sB.streak : 0;
+                
+                if (streakA !== streakB) return streakA - streakB;
+
+                const wrongDiff = (sB.wrong || 0) - (sA.wrong || 0);
                 if (wrongDiff !== 0) return wrongDiff;
-                return sA.correct - sB.correct;
+                return (sA.correct || 0) - (sB.correct || 0);
             });
 
-            // 3. 5位（同率含む）の境界判定
-            if (candidates.length <= 5) {
-                return candidates;
-            }
-
-            const thresholdWrong = stats[candidates[4].id].wrong;
-            return candidates.filter(item => stats[item.id].wrong >= thresholdWrong);
+            return candidates;
         }
 
         // スタート画面の苦手バッジの数字を更新
@@ -317,7 +356,7 @@
                 btnNormal.className = "flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center flex items-center justify-center gap-1.5 text-stone-600 hover:text-stone-900";
                 btnWeak.className = "flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center flex items-center justify-center gap-1.5 bg-amber-900 text-white shadow-sm";
                 qCountSelector.classList.add("opacity-50", "pointer-events-none");
-                desc.textContent = "よく間違えた問題ワースト5位（同率含む）から優先出題します。正解が不正解の1.5倍に達すると克服リストから卒業します。";
+                desc.textContent = "間違えた問題から優先出題します。間違えてから3回連続で正解すると苦手を克服できます！";
             } else {
                 btnNormal.className = "flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center flex items-center justify-center gap-1.5 bg-amber-900 text-white shadow-sm";
                 btnWeak.className = "flex-1 py-1.5 px-3 rounded-lg text-xs md:text-sm font-bold transition-all text-center flex items-center justify-center gap-1.5 text-stone-600 hover:text-stone-900";
@@ -841,7 +880,7 @@
                 if (weakItems.length === 0) {
                     showCustomAlert(
                         "お知らせ", 
-                        "苦手克服モードの対象となる問題がありません！\n（間違えた回数に対して正解数が1.5倍未満の問題が対象になります）\nまずは「通常修行」をプレイして、間違えた歴史を記録しましょう。",
+                        "苦手克服モードの対象となる問題がありません！\n（間違えた出来事は「3回連続正解」するまで苦手問題として特訓できます）\nまずは「通常修行」をプレイして、間違えた歴史を記録しましょう。",
                         "fa-circle-info",
                         "text-amber-700"
                     );
@@ -1290,7 +1329,14 @@
                 feedbackTitle.textContent = "お見事！完璧に一致しています！";
                 feedbackTextMain.textContent = "すべての歴史のできごとを正しい時系列に並べ替えることができました！素晴らしい暗記力です！";
 
-                sortCorrectCards.forEach(card => saveStats(card.id, true));
+                let overcomeCount = 0;
+                sortCorrectCards.forEach(card => {
+                    const res = saveStats(card.id, true);
+                    if (res && res.newlyOvercome) overcomeCount++;
+                });
+                if (overcomeCount > 0) {
+                    feedbackTextMain.innerHTML += `<div class="mt-2 text-xs font-bold text-emerald-800 bg-emerald-100/90 border border-emerald-300 rounded-lg px-3 py-1.5 flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> ${overcomeCount}件のできごとの苦手を克服しました（3連続正解達成）！</div>`;
+                }
             } else {
                 // 不正解のときは間違えた復習用の配列（incorrectQuestions）と結果用の配列（incorrectAnswers）に追加
                 incorrectQuestions.push(sortCorrectCards);
@@ -1315,11 +1361,15 @@
                     <div class="mt-2 text-xs font-semibold font-serif text-stone-700 leading-relaxed text-left bg-white/70 p-3 rounded-xl border border-red-100">
                         ${correctOrderStr}
                     </div>
+                    <div class="mt-2.5 text-xs font-bold text-red-800 bg-red-100/90 border border-red-200 rounded-lg px-3 py-1.5 flex items-center gap-1.5">
+                        <i class="fa-solid fa-fire text-red-500"></i> 位置がズレた出来事は苦手判定（3回連続正解で克服）となりました
+                    </div>
                 `;
 
                 sortDisplayCards.forEach((card, idx) => {
                     const isWrongPlace = (card.id !== sortCorrectCards[idx].id);
                     if (isWrongPlace) saveStats(card.id, false);
+                    else saveStats(card.id, true);
                 });
             }
 
@@ -1389,8 +1439,8 @@
                 }
             }
 
-            saveStats(currentQ.id, isCorrect);
-            showFeedback(isCorrect, playerAnswer, actualYear, currentQ.event);
+            const statResult = saveStats(currentQ.id, isCorrect);
+            showFeedback(isCorrect, playerAnswer, actualYear, currentQ.event, statResult);
         }
 
         // ================= モードB: 選択肢モードの処理 =================
@@ -1403,6 +1453,7 @@
             
             let isCorrect = false;
             let displayTargetEvent = "";
+            let statResult = null;
 
             if (settingsMode === 'same_era') {
                 const isJpToWd = (selectedBtn.dataset.itemId.startsWith("wd_"));
@@ -1410,12 +1461,13 @@
                 isCorrect = (selectedBtn.dataset.itemId === targetCorrectId);
                 displayTargetEvent = isJpToWd ? currentQ.wd.event : currentQ.jp.event;
 
-                saveStats(currentQ.jp.id, isCorrect);
-                saveStats(currentQ.wd.id, isCorrect);
+                const resJp = saveStats(currentQ.jp.id, isCorrect);
+                const resWd = saveStats(currentQ.wd.id, isCorrect);
+                statResult = (!isCorrect || resJp.newlyOvercome || resWd.newlyOvercome) ? (resJp.newlyOvercome ? resJp : resWd) : resJp;
             } else {
                 isCorrect = (selectedBtn.dataset.itemId === currentQ.id);
                 displayTargetEvent = currentQ.event;
-                saveStats(currentQ.id, isCorrect);
+                statResult = saveStats(currentQ.id, isCorrect);
             }
 
             for (let i = 0; i < 4; i++) {
@@ -1438,11 +1490,11 @@
             }
 
             const selectedText = document.getElementById("choice-text-" + choiceIdx).innerText.replace(/^(日本史|世界史)\s*/, "");
-            showFeedback(isCorrect, selectedText, displayTargetEvent, currentQ.year);
+            showFeedback(isCorrect, selectedText, displayTargetEvent, currentQ.year, statResult);
         }
 
         // ================= 共通処理 =================
-        function showFeedback(isCorrect, playerAnswer, correctAnswer, eventOrYear) {
+        function showFeedback(isCorrect, playerAnswer, correctAnswer, eventOrYear, statResult) {
             const feedbackArea = document.getElementById("feedback-area");
             const feedbackIcon = document.getElementById("feedback-icon");
             const feedbackTitle = document.getElementById("feedback-title");
@@ -1464,6 +1516,36 @@
                 feedbackDescription.textContent = currentQ.description;
             }
 
+            let weaknessNoticeHTML = "";
+            if (statResult) {
+                if (statResult.newlyOvercome) {
+                    weaknessNoticeHTML = `
+                        <div class="mt-2.5 text-xs font-bold text-emerald-800 bg-emerald-100/90 border border-emerald-300 rounded-lg px-3 py-2 flex items-center gap-2">
+                            <i class="fa-solid fa-crown text-amber-500 text-sm"></i>
+                            <span>【苦手克服達成！🎉】3回連続正解を達成し、この出来事の苦手を克服しました！</span>
+                        </div>
+                    `;
+                } else if (statResult.isWeak) {
+                    if (!isCorrect) {
+                        weaknessNoticeHTML = `
+                            <div class="mt-2.5 text-xs font-bold text-red-800 bg-red-100/90 border border-red-200 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                                <span class="flex items-center gap-1.5"><i class="fa-solid fa-fire text-red-500"></i> 【苦手判定】克服するには「3回連続正解」が必要です</span>
+                                <span class="bg-red-200 text-red-900 px-2 py-0.5 rounded text-[11px] font-mono whitespace-nowrap">0 / 3 連続正解</span>
+                            </div>
+                        `;
+                    } else {
+                        const streak = statResult.streak || 0;
+                        const remaining = Math.max(0, 3 - streak);
+                        weaknessNoticeHTML = `
+                            <div class="mt-2.5 text-xs font-bold text-amber-900 bg-amber-100/90 border border-amber-300 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                                <span class="flex items-center gap-1.5"><i class="fa-solid fa-fire text-amber-600"></i> 【苦手克服修行中】あと ${remaining} 回の連続正解で克服！</span>
+                                <span class="bg-amber-200 text-amber-900 px-2 py-0.5 rounded text-[11px] font-mono whitespace-nowrap">${streak} / 3 連続正解</span>
+                            </div>
+                        `;
+                    }
+                }
+            }
+
             if (isCorrect) {
                 score++;
                 document.getElementById("current-score").textContent = score;
@@ -1472,19 +1554,20 @@
                 feedbackIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
                 feedbackTitle.textContent = "大正解！";
 
+                let mainMsg = "";
                 if (settingsMode === 'input') {
-                    feedbackTextMain.textContent = `「${correctAnswer}」が起きたのは、まさに【 ${eventOrYear}年 】です！すばらしい！`;
+                    mainMsg = `「${eventOrYear}」が起こったのは、まさに【 ${correctAnswer}年 】です！すばらしい！`;
                 } else if (settingsMode === 'same_era') {
-                    feedbackTextMain.textContent = `その通り！【 ${eventOrYear}年頃 】に双方がほぼ同時期に起こりました！歴史がつながりましたね。`;
+                    mainMsg = `その通り！【 ${eventOrYear}年頃 】に双方がほぼ同時期に起こりました！歴史がつながりましたね。`;
                 } else {
-                    feedbackTextMain.textContent = `【 ${eventOrYear}年 】に起きたのは、まさに「${correctAnswer}」です！すばらしい！`;
+                    mainMsg = `「${correctAnswer}」が起こったのは、まさに【 ${eventOrYear}年 】です！すばらしい！`;
                 }
+                feedbackTextMain.innerHTML = `${mainMsg}${weaknessNoticeHTML}`;
             } else {
                 incorrectQuestions.push(currentQ);
 
                 let diffComment = "";
                 if (settingsMode === 'input') {
-                    // 【バグ修正箇所】引き算の対象を「eventOrYear（文字列）」から「correctAnswer（数値）」に正しく修正しました
                     const difference = Math.abs(playerAnswer - correctAnswer);
                     if (difference <= 3) {
                         diffComment = `惜しい！あと ${difference} 年のズレでした。`;
@@ -1502,8 +1585,8 @@
 
                     feedbackArea.className = "rounded-xl p-4 mb-4 flex flex-col gap-3 bg-red-50 border border-red-200 text-red-900";
                     feedbackIcon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
-                    feedbackTitle.textContent = `不正解 (正解 is ${correctAnswer}年)`;
-                    feedbackTextMain.textContent = `${diffComment} 正しくは 【 ${correctAnswer}年 】 です。解説を読んで覚え直そう！`;
+                    feedbackTitle.textContent = `不正解（正解：${correctAnswer}年）`;
+                    feedbackTextMain.innerHTML = `${diffComment} 「${eventOrYear}」が起こったのは正しくは 【 ${correctAnswer}年 】 です。解説を読んで覚え直そう！${weaknessNoticeHTML}`;
                 } else if (settingsMode === 'same_era') {
                     incorrectAnswers.push({
                         question: `【${currentQ.year}年頃】の対比クイズ`,
@@ -1514,7 +1597,7 @@
                     feedbackArea.className = "rounded-xl p-4 mb-4 flex flex-col gap-3 bg-red-50 border border-red-200 text-red-900";
                     feedbackIcon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
                     feedbackTitle.textContent = "不正解です";
-                    feedbackTextMain.textContent = `正しくは「${correctAnswer}」でした。同時期の日本と世界のつながりを確認しよう。`;
+                    feedbackTextMain.innerHTML = `正しくは「${correctAnswer}」でした。同時期の日本と世界のつながりを確認しよう。${weaknessNoticeHTML}`;
                 } else {
                     incorrectAnswers.push({
                         question: `${eventOrYear}年の出来事`,
@@ -1525,7 +1608,7 @@
                     feedbackArea.className = "rounded-xl p-4 mb-4 flex flex-col gap-3 bg-red-50 border border-red-200 text-red-900";
                     feedbackIcon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
                     feedbackTitle.textContent = "不正解です";
-                    feedbackTextMain.textContent = `正解は「${correctAnswer}」でした。解説をチェックしてみよう！`;
+                    feedbackTextMain.innerHTML = `「${correctAnswer}」が起こったのは 【 ${eventOrYear}年 】 でした。解説をチェックしてみよう！${weaknessNoticeHTML}`;
                 }
             }
 
@@ -1616,11 +1699,15 @@
                     const div = document.createElement("div");
                     div.className = "p-3 bg-stone-50 border border-stone-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs md:text-sm";
                     div.innerHTML = `
-                        <div class="font-medium text-stone-700">${item.question}</div>
+                        <div class="font-medium text-stone-700 flex items-center gap-1.5">
+                            <span class="text-red-500"><i class="fa-solid fa-fire text-xs"></i></span>
+                            <span>${item.question}</span>
+                        </div>
                         <div class="flex items-center gap-2">
                             <span class="text-stone-400 font-mono">（入力：${item.wrong}）</span>
                             <i class="fa-solid fa-arrow-right text-stone-400"></i>
                             <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">${item.correct}</span>
+                            <span class="text-[10px] text-red-600 font-bold bg-red-50 border border-red-200 px-1.5 py-0.5 rounded whitespace-nowrap">あと3連続正解で克服</span>
                         </div>
                     `;
                     listContainer.appendChild(div);
@@ -1714,10 +1801,10 @@
                     continue;
                 }
 
-                // 苦手・要復習トークン
+                // 苦手・要復習トークン（間違えてから3回連続正解していない問題）
                 if (token === '苦手' || token === '間違えた' || token === 'ミス' || token === '要復習') {
                     const s = stats[item.id] || { correct: 0, wrong: 0 };
-                    if (!(s.wrong > 0 && s.correct < s.wrong * 1.5)) return false;
+                    if (!isItemWeak(s)) return false;
                     continue;
                 }
 
@@ -1800,16 +1887,27 @@
             }
 
             entriesContainer.innerHTML = items.map(item => {
-                const s = stats[item.id] || { correct: 0, wrong: 0 };
+                const s = stats[item.id] || { correct: 0, wrong: 0, streak: 0 };
                 const highlightedEvent = highlightSearchTerms(item.event, timelineSearchQuery);
                 const highlightedDesc = highlightSearchTerms(item.description, timelineSearchQuery);
+                const weak = isItemWeak(s);
+                const streak = typeof s.streak === 'number' ? s.streak : 0;
+
+                let badgeHTML = "";
+                if (weak) {
+                    badgeHTML = `<span class="text-red-700 bg-red-100 border border-red-200 px-1.5 py-0.5 rounded font-bold" title="あと${3 - streak}回連続正解で克服"><i class="fa-solid fa-fire"></i> 苦手 (${streak}/3)</span>`;
+                } else if (s.wrong > 0 && (streak >= 3 || s.isWeak === false)) {
+                    badgeHTML = `<span class="text-emerald-700 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded font-bold"><i class="fa-solid fa-crown text-amber-500"></i> 克服済</span>`;
+                }
+
                 return `
                 <div class="bg-stone-50 border border-stone-200 rounded-xl p-4 relative">
-                    <div class="absolute top-3 right-3 flex gap-2 text-[10px] font-bold">
+                    <div class="absolute top-3 right-3 flex items-center gap-1.5 text-[10px] font-bold">
                         <span class="text-green-600 bg-green-50 px-1.5 py-0.5 rounded"><i class="fa-solid fa-square-check"></i> ${s.correct}</span>
                         <span class="text-red-500 bg-red-50 px-1.5 py-0.5 rounded"><i class="fa-solid fa-square-xmark"></i> ${s.wrong}</span>
+                        ${badgeHTML}
                     </div>
-                    <h4 class="text-sm font-bold text-stone-900 japanese-font leading-snug mb-1.5 pr-16">${highlightedEvent}</h4>
+                    <h4 class="text-sm font-bold text-stone-900 japanese-font leading-snug mb-1.5 pr-28">${highlightedEvent}</h4>
                     <p class="text-xs md:text-sm text-stone-600 leading-relaxed">${highlightedDesc}</p>
                 </div>
             `}).join("");
@@ -1825,14 +1923,18 @@
         function createTimelineCard(items, stats, type) {
             let correctSum = 0;
             let wrongSum = 0;
+            let hasWeak = false;
             items.forEach(item => {
                 const s = stats[item.id] || { correct: 0, wrong: 0 };
                 correctSum += s.correct;
                 wrongSum += s.wrong;
+                if (isItemWeak(s)) {
+                    hasWeak = true;
+                }
             });
 
             let borderClass = "border-stone-200 bg-white";
-            if (wrongSum > 0 && wrongSum >= correctSum) {
+            if (hasWeak) {
                 borderClass = "border-red-300 bg-red-50/40 ring-1 ring-red-200";
             } else if (correctSum > 0) {
                 borderClass = "border-green-300 bg-green-50/20";
@@ -1855,7 +1957,10 @@
             card.innerHTML = `
                 <div class="flex flex-col justify-between h-full">
                     <div class="text-[9px] font-bold ${type === 'japan' ? 'text-amber-800' : 'text-stone-600'} uppercase tracking-wider flex items-center justify-between">
-                        <span>${type === 'japan' ? '● 日本史' : '🗺 世界史'}${countBadge}</span>
+                        <span class="flex items-center gap-1">
+                            ${type === 'japan' ? '● 日本史' : '🗺 世界史'}${countBadge}
+                            ${hasWeak ? '<span class="text-red-500 ml-0.5" title="苦手（3連続正解で克服）"><i class="fa-solid fa-fire text-[10px]"></i></span>' : ''}
+                        </span>
                         <i class="fa-solid fa-arrow-up-right-from-square text-[9px] text-stone-300"></i>
                     </div>
                     <div class="text-xs text-stone-700 font-medium leading-snug break-words h-14 overflow-hidden line-clamp-3 my-1" title="${rawEventLabel}">
